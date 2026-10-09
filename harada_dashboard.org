@@ -1,14 +1,15 @@
 #+title: Harada Dashboard
 
 * 長期目標
-** 研究
+** 研究（実験 12 月末まで）
 1/30 卒論完成提出
 2/10 ポスター発表
 
-** TOEIC *800 点*
-** Kaggle Competition *Expert*
-** GitHub Pages
-** AtCorder *緑*
+** TOEIC *800 点* （5月まで）
+** Kaggle Competition *Expert* （5月まで）
+** GitHub Pages（5 月まで）
+** AtCorder *緑* （5月まで）
+** 応用情報技術者（2, 3 月まで）
 ** typing
 【現在】 1.8 打/s（約 108 回/分）
    │    ※ 手元を見ずにキーを押す基本ができている状態
@@ -99,8 +100,6 @@ https://medium.com/@luis_gonzales/a-look-at-mobilenetv2-inverted-residuals-and-l
 * その他
 *** TODO Emacs 内で半角全角が分かるようにする
 
-*** TODO Emacs を wsl に移行する
-ターミナルで ghostel を使用
 *** TODO 文字列を選択した際に表示している全てのバッファについて同じ文字列がハイライトされるようにする
 
 *** TODO スライド資料 reveal.js
@@ -114,8 +113,8 @@ https://medium.com/@luis_gonzales/a-look-at-mobilenetv2-inverted-residuals-and-l
 *** TODO mermaid
 *** TODO Emacs 内で Gemini, Copilot を使えるようにする
 *** TODO Org ファイルでそのまま github-io できたりしないかな
-*** TODO PDF ツール
 *** TODO AI 接続（i-have-adhd 、yomiyasu 気になる）
+*** TODO eww で DuckDuckGo(検索エンジン)をバッファとして開く
 
 
 * 2026 / September
@@ -140,12 +139,14 @@ DEADLINE: <2026-09-20 日>
 
 
 
-*** DOING mikan 月✅️火✅️水✅️木✅️金✅️土✅️日
+*** DONE mikan 月✅️火✅️水✅️木✅️金✅️土✅️日
 *** DONE 商品登録 10 件 DEADLINE: <2026-09-29 火>
 
 * 2026 / October
 ** 10/5～10/11
-*** DOING 低解像度フル画像による学習 DEADLINE: <2026-10-05 月>
+*** DOING mikan 月火水木金土日 DEADLINE: <2026-10-11 日>
+*** DONE 商品登録 10件<2026-10-09 金>
+*** DONE 低解像度フル画像による学習 DEADLINE: <2026-10-09 金>
 **** DONE サイズ指定<2026-09-28 月>
 **** DONE 専用の python ファイルを作成<2026-09-28 月>
 そのファイルからの呼び出し時のみ解像度を下げた学習を行う
@@ -154,20 +155,29 @@ DEADLINE: <2026-09-20 日>
 **** DONE Dataset クラス <2026-10-02 金>
 **** DONE DataLoader<2026-10-03 土>
 **** DONE 損失計算時にマスクを適用する<2026-10-04 日>
-**** DOING 実行
-**** STRT 学習曲線（Loss カーブ）の比較グラフ
-Train Loss は下がるのに、Validation Loss が途中で下がらなくなる（あるいは逆に上がり始める）。＝過学習の証明
-**** TODO 正解画像のヒストグラム・タイル分割手法によるヒストグラム・低解像度フル画像手法によるヒストグラム
-**** TODO 提出
+**** DONE 実行
+**** DONE 提出
+*** DONE PSNR と LPIPS の評価基準 DEADLINE: <2026-10-09 金>
 
-*** TODO PSNR と LPIPS の評価基準
-
-*** TODO 他研究との比較 DEADLINE: <2026-10-07 水>
+*** DOING 他研究との比較 DEADLINE: <2026-10-11 日>
+*** DOING 論文を読む環境を構築する<2026-10-10 土>
+***** PDF 閲覧 ＋ Org ノート連携
+***** PDF のハイライト・下線・コメント
+***** 論文ノートの自動生成・章ごとの要約
+***** 選択範囲の翻訳
+***** AI による論文読解
+***** 数式の LaTeX 化 ＋ 数式プレビュー
+***** Zotero による文献管理
+***** 論文を横断した知識管理
+*** TODO gt 翻訳の整備
 *** TODO MSOfficce 再登録
-*** TODO WSL 環境に移行する
-*** TODO wsl（Linux）について勉強する
-*** TODO tools のスクリプトの解説/改修
-*** TODO Emacs の org-mode で論文を書こう 2025 を実装する
+*** DONE WSL 環境に移行する DEADLINE: <2026-10-09 金>
+
+
 
 ** 10/12～10/18
+*** TODO 実行時の描画ファイルを.fig に格納する
+*** TODO tools のスクリプトの解説/改修
+*** TODO Emacs の org-mode で論文を書こう 2025 を実装する
 *** TODO ゼミ発表用のパワポを作成する
+*** TODO wsl（Linux）について勉強する
