@@ -1,0 +1,3311 @@
+
+#+TITLE: emacsの設定
+#+PROPERTY: header-args:emacs-lisp :tangle config.el
+
+基本的にコードブロックは tangle で =../config.el= に出力されますが，一部 =packages.el= に出力されるブロックもあります．(本ファイルで=config.el= と =packages.el= を一括管理しています．)
+
+#+begin_src emacs-lisp
+;;; -*- coding: utf-8 -*-
+#+end_src
+
+* 設定
+
+** 言語設定 :wsl:
+
+[[https://qiita.com/terzacommune/items/2831c3d5f0db8ac7f50b][[参考]emacs： 論文を書く研究者・翻訳者向けのinit.el全公開 （11/17 2025 改訂）]]
+
+#+begin_src emacs-lisp
+(setenv "LANG" "ja_JP.UTF-8")
+(set-language-environment "Japanese")
+(prefer-coding-system 'utf-8)
+#+end_src
+
+
+pgtk で日本語入力するにあたり input method framework を使う(t)か使わない(nil)か．
+#+begin_src emacs-lisp
+(setq pgtk-use-im-context-on-new-connection nil)
+#+end_src
+
+
+
+*** TODO mozc
+
+[[https://github.com/google/mozc][github/mozc]]
+[[https://github.com/smzht/mozc_emacs_helper][doom/mozc_emacs_helper]]
+#+begin_src emacs-lisp :tangle packages.el
+(package! mozc)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! mozc
+  :defer t
+  :init
+  (setq mozc-helper-program-name "/home/sumoto/bin/mozc_emacs_helper.sh")
+  (setq default-input-method "japanese-mozc")
+  (setq mozc-candidate-style 'echo-area)
+  (global-set-key (kbd "<zenkaku-hankaku>") #'toggle-input-method)
+  :config
+  (with-eval-after-load 'mozc
+    (let ((chars (string-to-list "abcdefghijklmnopqrstuvwxyz")))
+      (dolist (prefix '("C-" "M-"))
+        (dolist (char chars)
+          (define-key mozc-mode-map
+                      (kbd (concat prefix (string char)))
+                      nil))))))
+#+end_src
+
+- =(setq default-input-method "japanese-mozc")=: デフォルトの input method を japanese-mozc に．
+- =(setq mozc-candidate-style 'echo-area)=: 候補表示スタイル：'overlay, 'echo-area, 'popup など選べる．
+- =(global-set-key [zenkaku-hankaku] 'toggle-input-method))=: 全角/半角キーで日本語入力/英語入力切り替え．
+
+- =with-eval-after-load= 以下
+  日本語入力(mozc)だと C-a C-b など連続したコマンドが認識されないので，されるように．
+  - ~(let ((chars (string-to-list "abcdefghijklmnopqrstuvwxyz")))~: chars <- srting-to-list("abc")
+  - string-to-list は文字列を文字コードリスト(97 98 99)に変換
+  - ~(dolist (prefix '("C-" "M-"))
+        (dolist (char chars)~: C-, M-から始まる文字列に対して適用する
+  - 文字コードリストを文字列に変換して emacs に渡す
+
+     
+
+   
+** 環境設定
+
+*** SHELL
+
+**** Emacs が内部で使用する shell :wsl:
+
+#+begin_src emacs-lisp
+(setq shell-file-name "/usr/bin/zsh")
+#+end_src
+
+**** Emacs で M-x shell したときに使用する shell :wsl:
+
+#+begin_src emacs-lisp
+(setq explicit-shell-file-name "/usr/bin/zsh")
+#+end_src
+
+
+*** 画面サイズ
+
+#+begin_src emacs-lisp
+(add-to-list 'initial-frame-alist '(fullscreen . maximized))
+(add-to-list 'default-frame-alist '(fullscreen . maximized))
+#+end_src
+
+*** TODO font-size
+
+size ではなく，height を変更するとうまくいった．
+#+begin_src emacs-lisp
+
+(defun my/apply-font-based-on-frame (&optional frame)
+  (let* ((frame (or frame (selected-frame)))
+         (width (frame-pixel-width frame))
+         (height (cond ((> width 3840) 220)
+                       ((> width 1920) 200)
+                       (t 180))))
+    ;; default を更新
+    (set-face-attribute 'default frame :family "HackGen" :height height)
+
+    ;; doom-font も同期（:height 180 -> :size 18）
+    (setq doom-font (font-spec :family "HackGen" :size (/ height 10.0)))
+
+    ;; Doom 側のフォント再適用（これが肝）
+    (when (fboundp 'doom/reload-font)
+      (doom/reload-font))))
+
+(add-hook 'window-setup-hook #'my/apply-font-based-on-frame)
+(add-hook 'after-make-frame-functions #'my/apply-font-based-on-frame)
+(add-hook 'doom-load-theme-hook
+          (lambda () (my/apply-font-based-on-frame (selected-frame))))
+
+
+#+end_src
+
+
+** コピー&ペースト
+
+*** windows --> emacs on wsl へコピペすると文字化けすることの修正 :wsl:
+
+#+begin_src emacs-lisp
+(setq x-select-request-type
+      (list (intern "text/plain;charset=utf-8") 'UTF8_STRING 'TEXT 'STRING))
+(set-selection-coding-system 'utf-8)
+(set-clipboard-coding-system 'utf-8)
+#+end_src
+
+*** Emacs とシステムクリップボードを連携 :wsl:
+
+#+begin_src emacs-lisp
+(setq select-enable-clipboard t)
+#+end_src
+
+*** マウス中クリックで貼り付け
+
+#+begin_src emacs-lisp
+;; (setq select-enable-primary t)
+#+end_src
+
+*** マウスで選択したとき，その内容を kill-ring(内部のコピー履歴)に入れる
+
+#+begin_src emacs-lisp
+;; (setq  mouse-drag-copy-region t)
+#+end_src
+
+*** アクティブ選択をコピー扱いにする :wsl:
+
+この設定がないと WSL Emacs でコピー --> windows へペーストができない．
+#+begin_src emacs-lisp
+(setq select-active-regions nil)
+#+end_src
+
+*** ペーストで上書きできるように，選択後，文字入力で上書き :wsl:windows:
+
+
+#+begin_src emacs-lisp
+(delete-selection-mode t)
+#+end_src
+
+*** dired-rsync
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! dired-rsync)
+#+end_src
+
+** 基本
+
+*** 削除したファイルをゴミ箱へ送る :wsl:
+
+=~/.local/share/Trash= に送られるはずです．一度機能するか確かめてください．
+#+begin_src emacs-lisp
+(setq delete-by-moving-to-trash t)
+#+end_src
+
+#+begin_src emacs-lisp
+(defun my/trash-cleanup (&optional days)
+  "XDGゴミ箱 (~/.local/share/Trash) 内の30日以上前のファイルを削除する。
+DAYS が指定されていれば、その日数を閾値に使う。"
+  (interactive) 
+  (let* ((days (or days 30))
+         (trash-dir (expand-file-name "~/.local/share/Trash/files"))
+         (info-dir  (expand-file-name "~/.local/share/Trash/info"))
+         (now (float-time (current-time)))
+         (threshold (* 86400 days)))
+    (dolist (dir (list trash-dir info-dir))
+      (when (file-directory-p dir)
+        (dolist (file (directory-files dir t "^[^.]" t))
+          (let* ((attrs (file-attributes file))
+                 (mtime (float-time (file-attribute-modification-time attrs)))
+                 (age (- now mtime)))
+            (when (> age threshold)
+              (condition-case err
+                  (progn
+                    (message "✔ Deleting old trash item: %s" file)
+                    (if (file-directory-p file)
+                        (delete-directory file t)
+                      (delete-file file)))
+                (error (message "⚠️ Skipped (no permission): %s" file))))))))))
+#+end_src
+
+*** ~C-n~ で最終行で改行 :wsl:windows:
+
+#+begin_src emacs-lisp
+;; (setq next-line-add-newlines t)
+#+end_src
+
+*** スクロールを正確さより速さ優先
+
+#+begin_src emacs-lisp
+(setq fast-but-imprecise-scrolling t)
+#+end_src
+
+*** Emacs が何もしていないとき(アイドル状態)に画面更新を行うまでの待機時間(s) :wsl:windows:
+
+#+begin_src emacs-lisp
+(setq idle-update-delay 1.0)
+#+end_src
+
+*** 入力中は再描画や文字装飾をスキップ
+
+#+begin_src emacs-lisp
+(setq redisplay-skip-fontification-on-input t)
+#+end_src
+
+*** ファイル拡張子の大文字小文字を区別するか(nil)，しないか(t)
+
+#+begin_src emacs-lisp
+(setq auto-mode-case-fold t)
+#+end_src
+
+*** 長い行の双方向スキャン
+
+#+begin_src emacs-lisp
+(setq bidi-inhibit-bpa t)
+#+end_src
+
+*** Emacs がサブプロセスからの出力データの読み取りを改善
+[[https://ayatakesi.github.io/lispref/25.2/html/Output-from-Processes.html][36.9 プロセスからの出力の受信]]
+#+begin_src emacs-lisp
+(setq process-adaptive-read-buffering t)
+#+end_src
+
+*** electric :init:
+
+init.el で:editor electric を ON．挙動は下記ページが参考になる．
+[[https://tam5917.hatenablog.com/entry/2019/05/05/144718][electric-indent-modeの挙動]]
+
+*** xwidget
+
+#+begin_src emacs-lisp
+(map! :leader
+      :prefix ("o" . "open") ;; 標準の 'open' プレフィックス
+      "x" #'xwidget-webkit-browse-url)
+#+end_src
+
+
+*** browse-url
+
+#+begin_src emacs-lisp
+(after! browse-url
+  (setq browse-url-browser-function #'browse-url-generic
+        browse-url-generic-program "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"))
+#+end_src
+
+*** 半角と全角の間にスペースを入れる
+
+pangu-spacing というパッケージで自動的にスペースを入れてくれる．doom emacs は標準装備のようだ．
+私はスペースを強制されたくないので無効化する．
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! pangu-spacing :disable t)
+#+end_src
+
+*** 行末の空白を自動削除
+
+ws-butler というパッケージで自動的にこれをしてくれる．doom emacs は標準装備のようだ．
+私は無効化する．
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! ws-butler :disable t)
+#+end_src
+
+
+
+** UI
+*** カーソルの変更 :wsl:windows:
+
+#+begin_src emacs-lisp
+;; (setq-default cursor-type 'bar)
+#+end_src
+
+*** doom テーマ :wsl:windows:
+
+[[https://github.com/doomemacs/themes][Doom Emacs' Theme Pack]]
+#+begin_src emacs-lisp
+(setq doom-theme 'doom-gruvbox-light)
+#+end_src
+
+*** 行番号
+
+**** 行番号を表示 :wsl:windows:
+
+#+begin_src emacs-lisp
+(setq display-line-numbers-type t)
+#+end_src
+
+****  行番号の表示の仕方
+
+#+begin_src emacs-lisp
+;; (setq display-line-numbers-type 'relative)
+#+end_src
+
+*** フォーカスされていないウィンドウのハイライトを有効にするか(t)，しないか(nil)
+
+#+begin_src emacs-lisp
+(setq highlight-nonselected-windows nil)
+#+end_src
+
+*** スクロール
+
+
+**** ポインタ位置とスクロールの関係
+
+[[https://ayatakesi.github.io/emacs/24.5/Auto-Scrolling.html][参考テキスト]]
+デフォルトは 0
+100 より大きい数字にするとポインタ行をセンタリングしない(画面が急にジャンプするように感じない)
+ポインタが n 行以下スクリーンの外に出たらポインタ位置をセンタリングする
+#+begin_src emacs-lisp
+(setq scroll-conservatively 101)
+#+end_src
+
+**** スクロール行数
+
+#+begin_src emacs-lisp
+;; (setq scroll-step 1)
+#+end_src
+
+**** スクロール時の(上下) マージン
+
+例えば 5 に設定すると，上(下)にスクロール中，上(下)から 5 行目の時点でスクロールを開始する．
+0 だとぎりぎりまでスクロールしない．
+#+begin_src emacs-lisp
+(setq scroll-margin 5)
+#+end_src
+
+#+begin_src emacs-lisp
+(pixel-scroll-precision-mode 1)
+#+end_src
+
+
+**** C-v した後 M-v したときにポインタ行が変わらない
+
+#+begin_src emacs-lisp
+(setq scroll-preserve-screen-position t)
+#+end_src
+
+*** ミニバッファのリサイズを許可(t)か固定(nil)
+
+#+begin_src emacs-lisp
+(setq resize-mini-windows nil)
+#+end_src
+
+*** doom-modeline
+
+**** 文字コード・改行コード（(LF)など）を表示 :wsl:windows:
+
+#+begin_src emacs-lisp
+(setq doom-modeline-buffer-encoding t)
+#+end_src
+
+**** active なバッファの modeline 背景色を変更
+
+#+begin_src emacs-lisp
+(custom-set-faces
+  '(mode-line-active ((t (:background "khaki2")))))
+#+end_src
+
+
+
+
+*** diff-hl
+
+バッファ内で git の差分表示．
+init.el で vc-gutter を on にすると重くなるので，packages.el から手動で導入．
+
+ないとき
+[[/home/sumoto/.doom.d/fig/setting-emacs_20251217_160822.png]]
+
+あるとき
+[[/home/sumoto/.doom.d/fig/setting-emacs_20251217_160852.png]]
+(緑は前回 commit からの追加分)
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! diff-hl)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! diff-hl
+  :defer t
+  :hook (magit-post-refresh . diff-hl-magit-post-refresh)
+  :init
+  (global-diff-hl-mode))
+#+end_src
+
+*** tabs :init:
+
+init.el で:ui tabs を有効にすると，centaur-tabs が導入される．
+[[https://docs.doomemacs.org/v21.12/modules/ui/tabs/][doom/tabs]]
+
+#+begin_src emacs-lisp
+(map! :leader
+      "<right>" #'centaur-tabs-forward
+      "<left>" #'centaur-tabs-backward)
+#+end_src
+
+
+** 便利機能(パッケージ紹介)
+
+*** perfect-margin :wsl:windows:
+
+#+CAPTION: perfect-margin-mode が ON のとき
+[[/home/sumoto/.doom.d/fig/setting-emacs_20251126_001004.png]]
+
+#+CAPTION: perfect-margin-mode が OFF のとき
+[[/home/sumoto/.doom.d/fig/setting-emacs_20251126_001043.png]]
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! perfect-margin)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! perfect-margin
+  :config
+  (after! doom-modeline
+    (setq mode-line-right-align-edge 'right-fringe))
+  (after! minimap
+    ;; if you use (vc-gutter +pretty)
+    ;; and theme is causing "Invalid face attribute :foreground nil"
+    (setq minimap-highlight-line nil)
+    (setq minimap-width-fraction 0.08))
+  ;; (setq perfect-margin-only-set-left-margin t)
+  (perfect-margin-mode t))
+#+end_src
+
+*** rainbow-delimiters :wsl:windows:
+
+対応する括弧を見やすく色分け表示．
+[[http://github.com/Fanael/rainbow-delimiters][rainbow-delimiters]]
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! rainbow-delimiters)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! rainbow-delimiters
+  :hook (prog-mode . rainbow-delimiters-mode))
+#+end_src
+
+*** vundo :wsl:windows:
+
+[[https://github.com/casouri/vundo][vundo]]
+「戻る」を visualize してくれる．
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! vundo)
+#+end_src
+
+#+begin_src emacs-lisp
+(map! "C-c u" #'vundo)
+;; vundo モードでの RET キーの挙動を修正
+(after! vundo
+  (define-key vundo-mode-map (kbd "RET") #'vundo-confirm))
+#+end_src
+
+*** transpose-frame :wsl:windows:
+
+フレーレムイアウトの転置・変更
+2 つのバッファの位置を，上下<->左右に変更できる．
+
+ないとき
+[[/home/sumoto/.doom.d/fig/setting-emacs_20251126_001250.png]]
+
+あるとき
+[[/home/sumoto/.doom.d/fig/setting-emacs_20251126_001333.png]]
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! transpose-frame)
+#+end_src
+
+
+C-c w f で実行
+#+begin_src emacs-lisp
+(map! :leader
+      :desc "Transpose Frame"
+      "w f" #'transpose-frame)
+#+end_src
+
+*** aggressive-indent
+
+自動インデント．
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! aggressive-indent)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! aggressive-indent
+  :defer t  
+  :hook (emacs-lisp-mode . aggressive-indent-mode)
+  :hook (typescript-mode . aggressive-indent-mode))
+#+end_src
+
+
+*** anzu :windows:wsl:
+
+検索結果の表示を強化
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! anzu)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! anzu
+  :defer t
+  :init (global-anzu-mode +1)
+  :config
+   (setq anzu-use-migemo t))
+#+end_src
+
+
+*** magit
+
+magit が少し重いので，projectile のキャッシュを使用しない．
+#+begin_src emacs-lisp
+(after! magit
+  (when (fboundp '+magit-invalidate-projectile-cache-h)
+    (remove-hook 'magit-post-refresh-hook #'+magit-invalidate-projectile-cache-h)))
+#+end_src
+
+*** multiple-cursors :wsl:windows:
+
+#+begin_src emacs-lisp
+(use-package! multiple-cursors
+  :defer t
+  :bind
+  (("C-S-c C-S-c" . mc/edit-lines)
+   ("C->" . mc/mark-next-like-this)
+   ("C-<" . mc/mark-previous-like-this)))
+#+end_src
+
+*** treemacs :wsl:windows:
+
+[[https://docs.doomemacs.org/v21.12/modules/ui/treemacs/][doom/treemacs]]
+
+init.el で treemacs を on にすると，以下のパッケージが導入される．
+- treemacs
+- treemacs-projectile
+- treemacs-evil if :editor evil +everywhere
+- treemacs-magit if :tools magit
+- treemacs-persp if :ui workspaces
+- lsp-treemacs if +lsp
+
+**** TODO treemacs
+
+#+begin_src emacs-lisp
+(after! treemacs
+  (setq treemacs-show-hidden-files t))
+
+(map! :leader
+      "t t" #'treemacs
+      "0"   #'treemacs-select-window)
+#+end_src
+
+
+treemacs のファイル上で o を押したらそのファイルを windows chrome で開く．
+
+#+begin_src emacs-lisp
+;; WSL → Windows Chrome で開く関数
+(defun my/wsl-open-with-windows-chrome (path)
+  "Open PATH using Windows Chrome via PowerShell.
+Works for both /mnt/... and /home/... paths."
+  (let* ((win-path
+          ;; wslpath -w で Windows のパスに変換
+          (string-trim
+           (shell-command-to-string
+            (format "wslpath -w '%s'" path)))))
+    (start-process
+     "chrome-wsl" nil
+     "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+     "-NoProfile" "-Command"
+     (format "Start-Process 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' '%s'"
+             win-path))))
+
+;; Treemacs のノードを Windows Chrome で開く
+(defun my/treemacs-open-in-windows-chrome ()
+  "Open the current Treemacs file node in Windows Chrome."
+  (interactive)
+  (let* ((btn  (treemacs-node-at-point))
+         (path (and btn (treemacs-safe-button-get btn :path))))
+    (cond
+     ;; node がない
+     ((not path)
+      (message "No node at point."))
+
+     ;; ディレクトリは開かない
+     ((not (file-regular-p path))
+      (message "This node is not a file: %s" path))
+
+     ;; OK → Windows Chrome で開く
+     (t
+      (my/wsl-open-with-windows-chrome path)
+      (message "Opening in Windows Chrome: %s" path)))))
+
+;; Treemacs キーバインド ("o" で開く)
+(with-eval-after-load 'treemacs
+  (define-key treemacs-mode-map (kbd "o")
+    #'my/treemacs-open-in-windows-chrome))
+#+end_src
+
+
+*** consult :wsl:windows:
+
+[[https://github.com/minad/consult][consult.el]]
+検索・バッファ切り替え機能強化
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! consult)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! consult
+  :defer t
+  :bind (("C-x b" . consult-buffer))
+  :config
+  (map! :prefix ("M-g" . "consult")
+        "o" #'consult-outline
+        "f" #'consult-fd
+        "l" #'consult-line
+        "r" #'consult-ripgrep))
+#+end_src
+
+
+[[https://www.reddit.com/r/emacs/comments/1p7wm82/make_consultripgrep_grep_fd_c
+ompletion_argument/][Make consult-{ripgrep, grep, fd} completion argument of command]]
+たとえば，consult-fd で ~#treemacs -- -HI~ などできる．
+
+#+begin_src emacs-lisp
+(defun consult--get-completion-options-from-help (exec)
+    "Generate exec options table vai `exec' -h."
+    (when (executable-find exec)
+      (let* ((-h (shell-command-to-string (concat exec  " --help")))
+     (-h-list (string-split -h "\\(\\.\\|:\\)\n"))
+     (doc-left-pad 30))
+(mapcan (lambda (h)
+  (let ((l (string-replace "\n" "" h)))
+    (when (string-match (rx-to-string
+ '(: bol (* space)
+     (group "-" (? "-") (+ (or alnum "-")))
+     (? ", ") (? (group "-" (? "-") (+ (or alnum "-"))))
+     (? "=" (+ (or "_" "-" alnum)))
+     (+ space)
+     (group (* any)) eol))
+l)
+      (let* ((short (match-string 1 l))
+     (long (match-string 2 l))
+     (doc (match-string 3 l))
+     (s-pad (- doc-left-pad (length short)))
+     (l-pad (when long (- doc-left-pad (length long))))
+     (s-doc (concat (make-string s-pad ?\s) doc))
+     (l-doc (when long (concat (make-string l-pad ?\s) doc))))
+(if long
+    (list `(,short . ,s-doc)
+  `(,long . ,l-doc))
+  (list `(,short . ,s-doc)))))))
+-h-list))))
+
+(defmacro def-consult-help (command exec)
+    (let ((options-fun (intern (format "consult-%s-get-completion-options" exec)))
+  (options-alist (intern (format "consult-%s-completion-options-alist" exec)))
+  (annotion (intern (format "consult-%s-completion-annotation" exec)))
+  (table (intern (format "consult-%s-completion-table" exec)))
+  (capf (intern (format "consult-%s-completion-at-point" exec)))
+  (adv (intern (format "consult-%s-with-completion-at-point" exec))))
+      `(progn
+ (defun ,options-fun ()
+     "Generate options table vai -h."
+   (consult--get-completion-options-from-help ,exec))
+
+ (defcustom ,options-alist
+   (,options-fun)
+   ,(format "%s options alist." exec))
+ 
+ (defun ,annotion (candidate)
+   "Annotation for rg option."
+   (cdr (assoc candidate ,options-alist)))
+ 
+ (defun ,table ()
+   "List all option for rg."
+   (mapcar #'car ,options-alist))
+ 
+ (defun ,capf ()
+   "Completion option.
+This is the function to be used for the hook `completion-at-point-functions'."
+   (interactive)
+   (let* ((bds (bounds-of-thing-at-point 'symbol))
+  (start (car bds))
+  (end (cdr bds)))
+     (list start end (,table) :annotation-function #',annotion)))
+
+ (defun ,adv (orign &rest args)
+   (minibuffer-with-setup-hook
+       (:append
+(lambda ()
+  (add-hook 'completion-at-point-functions
+    #',capf nil t)))
+     (apply orign args)))
+
+ (advice-add ,command :around ',adv))))
+
+(def-consult-help 'consult-ripgrep "rg")
+(def-consult-help 'consult-fd "fd")
+#+end_src
+
+*** vterm :init:wsl:
+
+比較的モダンな定評のあるターミナル．本物のターミナルに近い使用感になる．
+
+**** vterm-toggle
+
+ターミナル(vterm)のポップアップ切り替え
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! vterm-toggle)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! vterm-toggle
+  :defer t
+  :config
+  (setq vterm-toggle-hide-method 'bury)
+  :commands vterm-toggle
+  :init (map! :leader "o t" #'+vterm/toggle))
+#+end_src
+
+*** aider
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! aider :recipe (:host github :repo "tninja/aider.el"))
+#+end_src
+
+AI 連携．
+=~/.aider.conf.yml= の内容を知りたい人は個人的に連絡をください．
+#+begin_src emacs-lisp
+(use-package! aider
+  :config
+  ;; For latest claude sonnet model
+  ;; (setq aider-args '("--model" "sonnet" "--no-auto-accept-architect")) ;; add --no-auto-commits if you don't want it
+  ;; (setenv "ANTHROPIC_API_KEY" anthropic-api-key)
+  ;; Or chatgpt model
+  ;; (setq aider-args '("--model" "o4-mini"))
+  ;; (setenv "OPENAI_API_KEY" <here>)
+  ;; Or use your personal config file
+  (setq aider-args `("--config" ,(expand-file-name "~/.aider.conf.yml")))
+  ;; ;;
+  ;; Optional: Set a key binding for the transient menu
+  ;;(global-set-key (kbd "C-c a") 'aider-transient-menu) ;; for wider screen
+  ;; or use aider-transient-menu-2cols / aider-transient-menu-1col, for narrow screen
+  (aider-magit-setup-transients)) ;; add aider magit function to magit menu
+
+(map! :leader
+      "A" #'aider-transient-menu)
+
+#+end_src
+
+
+*** gptel
+
+#+begin_src emacs-lisp :tangle no
+(package! gptel :recipe (:nonrecursive t))
+#+end_src
+
+#+begin_src emacs-lisp :tangle no
+(use-package! gptel
+  :defer t
+  :after gptel-gh
+  :custom
+  (gptel-model 'gpt-5-mini)
+  (gptel-backend (gptel-make-gh-copilot "Copilot"))
+  (gptel-default-mode 'org-mode)
+  :config
+  (define-key gptel-mode-map (kbd "C-c C-c") #'gptel-send))
+
+(gptel-make-gh-copilot "Copilot")
+
+(map! :leader
+      (:prefix ("g" . "gptel")
+       :desc "gptel" "g" #'gptel
+       :desc "add file" "f" #'gptel-add-file
+       :desc "menu"   "m" #'gptel-menu))
+
+
+(defun gptel-generate-commit-message ()
+  "Generate commit message using gptel"
+  (interactive)
+  (let* ((diff (shell-command-to-string "git diff --cached"))
+         (prompt (concat
+                  "以下のgit diffから、コミットメッセージを生成してください。\n"
+                  "フォーマット: <Type>: #<branch name> <Subject>\n"
+                  "<Type>は以下から選択: chore/docs/feat/fix/hotfix/add/update/change/clean/disable/remove/upgrade/revert/refactor/style/test\n"
+                  "<branch name>はブランチ名を使用\n"
+                  "<Subject>は変更内容を現在形で記述\n"
+                  "例: feat: #main メンバーデータのupsert機能を追加する\n"
+                  "一行のみ出力してください。\n\n"
+                  "Git diff:\n"
+                  diff)))
+
+    (insert "thinking...")
+
+    (gptel-request
+     prompt
+     :callback (lambda (response _info)
+                 (with-current-buffer (current-buffer)
+                   ;; まず"thinking..."というテキストを削除
+                   (save-excursion
+                     (goto-char (point-min))
+                     (when (search-forward "thinking..." nil t)
+                       (delete-region (match-beginning 0) (match-end 0))))
+                   ;; commit messageを挿入
+                   (insert (string-trim response)))))))
+
+
+(add-hook 'git-commit-mode-hook #'gptel-generate-commit-message)
+
+
+#+end_src
+
+#+begin_src emacs-lisp
+(after! gptel
+  (setq
+   gptel-model 'gemini-2.5-flash-lite
+   gptel-backend
+   (gptel-make-gemini
+    "Gemini"
+    :key (getenv "GEMINI_API_KEY")
+    :stream t)))
+#+end_src
+
+
+
+*** claude code
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! claude-code-ide
+  :recipe (:host github :repo "manzaltu/claude-code-ide.el"))
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! claude-code-ide
+  :config
+  (claude-code-ide-emacs-tools-setup)) ; Optionally enable Emacs MCP tools
+#+end_src
+
+
+*** ai-code-interface.el
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! ai-code)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! ai-code
+  :config
+  (ai-code-set-backend 'claude-code)
+  (ai-code-prompt-filepath-completion-mode 1)
+  (global-auto-revert-mode 1)
+  (setq auto-revert-interval 3)
+  (setq ai-code-auto-test-type 'ask-me)
+
+  ;; 任意: magit 連携
+  (with-eval-after-load 'magit
+    (ai-code-magit-setup-transients)))
+
+
+(map! :leader
+      "C" #'ai-code-menu)
+#+end_src
+
+*** gt
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! gt)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! gt
+  :config
+  (setq gt-langs '(en ja))
+  (setq gt-default-translator
+        (gt-translator
+         :engines (gt-google-engine))))
+#+end_src
+
+#+begin_src emacs-lisp
+(map! :leader
+      :desc "Translate"
+      "g t" #'gt-translate)
+#+end_src
+
+
+*** hl-todo :wsl:windows:
+
+
+[[https://docs.doomemacs.org/v21.12/modules/ui/hl-todo/][doom/hl-todo]]
+init.el で hl-todo を有効にしてください．
+
+#+begin_src emacs-lisp
+(after! hl-todo
+  :defer t
+  :config
+  (setq hl-todo-keyword-faces
+        '(("TODO" . "red")
+          ("FIXME" . "orange")
+          ("REVIEW" . "indian red")
+          ("BUG"  . "chocolate")
+          ("QUESTION" . "deep pink")
+          ("HACK" . "purple")
+          ("NOTE" . "green")
+          ("DEPRECATED" . "aquamarine4")
+          ("DONE" . "blue")))
+  (global-hl-todo-mode))
+#+end_src
+
+*** pdf-tools
+
+#+begin_src emacs-lisp 
+(use-package! pdf-tools
+  :defer t
+  :mode ("\\.pdf\\'" . pdf-view-mode)
+  :config
+  (setq pdf-view-display-size 'fit-page
+        pdf-view-use-scaling t
+        pdf-view-use-imagemagick nil
+        pdf-sync-backward-display-action
+        '(display-buffer-reuse-window (inhibit-same-window . t)))
+  (map! :map pdf-view-mode-map
+      "C-c C-g" #'pdf-sync-backward-search))
+#+end_src
+
+- ~pdf-view-display-size 'fit-page~: pdf を開いたときにページ全体を画面に収める．
+- ~pdf-view-use-scaling t~: 高解像度対応
+
+*** TODO embark
+
+#+begin_src emacs-lisp
+
+(use-package embark
+  :bind (("C-." . embark-act)         ;; pick some comfortable binding
+         ("C-;" . embark-dwim)        ;; good alternative: M-.
+         ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+  :init
+  (setq prefix-help-command #'embark-prefix-help-command)
+
+  :config
+  ;; Hide the mode line of the Embark live/completions buffers
+  (add-to-list 'display-buffer-alist
+               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+                 nil
+                 (window-parameters (mode-line-format . none)))))
+(use-package embark-consult
+  :hook (embark-collect-mode . consult-preview-at-point-mode))
+
+;;Embarkアクションリストにコマンド実行機能を追加
+(defun embark-act-on-file-with-command (file)
+  "現在のファイルに対して実行するコマンドを選択する"
+  (interactive "FFile: ")
+  (let* ((command (read-command "実行するコマンド: "))
+         (command-fn (symbol-function command)))
+    (if (commandp command-fn)
+        (with-current-buffer (find-file-noselect file)
+          (call-interactively command-fn))
+      (error "%s はコマンドではありません" command))))
+
+;; ファイルアクションにM-x相当の操作を追加
+(after! embark
+  (define-key embark-file-map (kbd "M-x") #'embark-act-on-file-with-command))
+
+#+end_src
+
+*** visual-regexp
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! visual-regexp)
+#+end_src
+
+#+begin_src emacs-lisp
+(map! :leader
+      (:prefix ("v r" . "visual-regexp")
+               :desc "vr/query-replace" "q" #'vr/query-replace
+               :desc "vr/replace" "r" #'vr/replace
+               :desc "vr/mc-mark" "m" #'vr/mc-mark
+               :desc "vr/isearch-backward" "i" #'vr/isearch-backward
+               :desc "vr/isearch-forward" "f" #'vr/isearch-forward))
+#+end_src
+
+
+*** atcoder
+
+[[https://rkd3.dev/post/emacs-oj/][EmacsでAtCoderにPythonで参加する]]
+M-x oj-login ができない問題については，以下の Toxapex4096 on Mar 27 のコメントで解決．
+[[https://github.com/online-judge-tools/oj/issues/934][faile to login after atcoder adopted cloudflare captchas]]
+M-x oj-prepare は，https://atcoder.jp/contests/abc360/tasks/abc360_a など，問題ごとに指定することで解決した．
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! oj)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! oj
+  :defer t
+  :custom ((oj-compiler-python "julia")
+           (oj-default-online-judge 'atcoder)
+           (oj-home-dir "~/workspace/competitive-programming/oj")))
+#+end_src
+
+
+
+*** hl-block-mode
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! hl-block-mode)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! hl-block-mode
+  :hook ((prog-mode org-mode) . hl-block-mode)
+  :config
+  (setq hl-block-bracket nil
+        hl-block-single-level t
+        hl-block-style 'bracket))
+#+end_src
+
+*** TODO org-remark
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-remark)
+(package! svg-lib)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! org-remark
+  :defer t
+  :config
+  (org-remark-global-tracking-mode +1)
+  ;; ;; Optional if you would like to highlight websites via eww-mode
+  ;; (with-eval-after-load 'eww
+  ;;   (org-remark-eww-mode +1))
+
+  ;; ;; Optional if you would like to highlight EPUB books via nov.el
+  ;; (with-eval-after-load 'nov
+  ;;   (org-remark-nov-mode +1))
+
+  ;; ;; Optional if you would like to highlight Info documentation via Info-mode
+  ;; (with-eval-after-load 'info
+  ;;   (org-remark-info-mode +1))
+  )
+#+end_src
+
+** language-mode
+*** csv-mode :wsl:windows:
+
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! csv-mode)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! csv-mode
+  :mode ("\\.csv\\'" . csv-mode)
+  :hook (csv-mode . csv-align-mode)
+  :custom
+  (csv-separators '("," ";" "\t")))
+#+end_src
+
+*** markdown-mode :init:
+
+init.el で markdown を有効にしてください．以下の package が導入されます．
+markdown-mode
+markdown-toc
+[[https://docs.doomemacs.org/v21.12/modules/lang/markdown/][doom/markdown]]
+[[https://qiita.com/tadsan/items/7bb0099479f647d2c106][参考:Markdown Modeと久々に向き合う]]
+
+
+#+begin_src emacs-lisp
+(use-package! markdown-mode
+  :mode (("\\.md\\'" . gfm-mode)
+         ("README\\.md\\'" . gfm-mode))
+  :init
+  (setq markdown-command '("pandoc" "--from=markdown" "--to=html5"))
+  (setq markdown-fontify-code-blocks-natively t)
+  (setq markdown-header-scaling t)
+  (setq markdown-indent-on-enter 'indent-and-new-item)
+
+  :config
+  (map! :map markdown-mode-map
+        "<S-tab>" #'markdown-shifttab))
+
+#+end_src
+
+- ~(setq markdown-command '("pandoc" "--from=markdown" "--to=html5"))~: markdown-preview などで使用．
+- ~(setq markdown-fontify-code-blocks-natively t)~: シンタックスハイライトを有効にする．
+- ~(setq markdown-header-scaling t)~: 見出しのフォントサイズを調整する．
+- ~(setq markdown-indent-on-enter 'indent-and-new-item)~: enter を押したときの挙動を調整．
+- ~"<S-tab>" #'markdown-shifttab))~: Shigt-tab で見出し折りたたみ
+
+   
+xwidget 版 emacs 前提．
+[[https://github.com/hotoku/fosi][github/fosi]]
+
+#+begin_src emacs-lisp
+(defun my/fosi-preview-auto ()
+  "fosiで変換し、xwidgetが使えればxwidget、無理なら外部ブラウザで表示"
+  (interactive)
+
+  (when (buffer-modified-p)
+    (save-buffer))
+
+  ;; 既存 fosi を止める
+  (when (get-process "fosi-proc")
+    (delete-process "fosi-proc"))
+
+  (let* ((file-path (buffer-file-name))
+         (base-name (file-name-base file-path))
+         (output-path (concat (file-name-sans-extension file-path) ".html"))
+         (buf (current-buffer))
+         (url (concat "http://localhost:3000/" base-name ".html")))
+
+    (start-process
+     "fosi-proc" nil
+     "fosi" "-i" file-path "-d" output-path "-f")
+
+    (sit-for 0.6)
+    
+
+    ;; (cond
+    ;;  ((and (featurep 'xwidget-internal)
+    ;;        (fboundp 'xwidget-webkit-browse-url))
+    ;;   (split-window-right)
+    ;;   (other-window 1)
+    ;;   (xwidget-webkit-browse-url url)
+    ;;   (select-window (get-buffer-window buf)))
+    ;;  (t
+    ;;   (browse-url url)))
+(let ((browse-url-browser-function #'browse-url-default-browser))
+  (browse-url url))
+
+    ))
+#+end_src
+
+#+begin_comment
+(cond
+ (条件 1
+  条件 1 が真のときの処理)
+ (条件 2
+  条件 2 が真のときの処理)
+ (t
+  どの条件にも該当しなかったときの処理))
+#+end_comment
+
+
+*** latex
+
+#+begin_src emacs-lisp
+(use-package! tex
+  :defer t
+  :mode ("\\.tex\\'" . LaTeX-mode)
+  :config
+
+  (setq TeX-parse-self t
+        TeX-auto-save t
+        TeX-engine 'default
+        TeX-command-default "LatexMk"
+        TeX-save-query nil
+        TeX-show-compilation t)
+
+  (setq TeX-view-program-selection '((output-pdf "PDF Tools"))
+        TeX-view-program-list '(("PDF Tools" TeX-pdf-tools-sync-view)))
+
+  (add-to-list 'TeX-command-list
+               '("LatexMk"
+                 "latexmk -f %s"
+                 TeX-run-TeX nil t
+                 :help "Run latexmk using .latexmkrc"))
+  
+  ;; (add-to-list 'TeX-command-list
+  ;;              '("LatexMk-upLatex"
+  ;;                "latexmk -pdfdvi %s"
+  ;;                TeX-run-TeX nil t
+  ;;                :help "Run Latexmk with uplatex + dvipdfmx"))
+
+
+  (setq TeX-source-correlate-method 'synctex
+        TeX-source-correlate-start-server t)
+  (add-hook 'TeX-mode-hook #'TeX-source-correlate-mode)
+
+  (set-company-backend! 'LaTeX-mode
+    '(company-files :with company-capf)
+    'company-dabbrev))
+#+end_src
+
+
+*** R
+
+#+begin_src emacs-lisp
+(use-package! ess
+  :defer t
+  :init
+  (setq ess-ask-for-ess-directory nil
+        ess-smart-operators t
+        inferior-R-args "--no-save --no-restore --quiet")
+  (setq ess-style 'RStudio)
+  :mode ("\\.[rR]\\'" . ess-r-mode)
+  :config
+  ;; コメント文字を単一の#に設定
+  (add-hook 'ess-r-mode-hook
+            (lambda ()
+              (setq-local comment-start "# ")
+              (setq-local comment-start-skip "#+\\s-*")
+              (setq-local comment-add 0))))
+#+end_src
+
+**** ess-plot
+
+[[https://github.com/DennieTeMolder/ess-plot][github/ess-plot]]
+
+ないとき
+[[/home/sumoto/.doom.d/fig/setting-emacs_20251217_194606.png]]
+
+あるとき
+[[/home/sumoto/.doom.d/fig/setting-emacs_20251217_194507.png]]
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! ess-plot
+  :recipe (:host github :repo "DennieTeMolder/ess-plot"))
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! ess-plot
+  :hook (ess-r-post-run . ess-plot-on-startup-h))
+#+end_src
+
+*** TODO Quarto
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! quarto-mode)
+#+end_src
+
+#+begin_src emacs-lisp
+(add-to-list 'auto-mode-alist '("\\.Rmd\\'" . poly-quarto-mode))
+(add-to-list 'auto-mode-alist '("\\.qmd\\'" . poly-quarto-mode))
+
+(setq quarto-command "quarto") ; またはフルパス例: "/usr/local/bin/quarto"
+(with-eval-after-load 'markdown-mode
+  (map! :map markdown-mode-map
+        "C-c C-q" #'quarto-preview
+        "C-c C-c" #'quarto-render))
+
+(defun insert-quarto-block ()
+  "Insert various types of Quarto blocks at point."
+  (interactive)
+  (let* ((block-types
+          '(("Callout" . (("note" . "Note")
+                          ("warning" . "Warning")
+                          ("important" . "Important")
+                          ("tip" . "Tip")
+                          ("caution" . "Caution")))
+            ("Code" . (("python" . "Python")
+                       ("r" . "R")
+                       ("julia" . "Julia")
+                       ("latex" . "LaTeX")
+                       ("bash" . "Shell")))
+            ("Other" . (("aside" . "Aside")
+                        ("cell" . "Cell")))))
+         (category (completing-read "Block type: "
+                                    (mapcar #'car block-types)))
+         (subtypes (cdr (assoc category block-types)))
+         (chosen-type (car (assoc (completing-read (format "%s type: " category)
+                                                   subtypes)
+                                  subtypes)))
+         (title (when (string= category "Callout")
+                  (read-string "Title (optional): "))))
+    (cond
+     ((string= category "Callout")
+      (insert (format "::: {.callout-%s}" (downcase chosen-type)))
+      (when (not (string-empty-p title))
+        (insert (format " #%s" title)))
+      (insert "\n\n:::\n")
+      (forward-line -1))
+     ((string= category "Code")
+      (insert (format "```{%s}\n\n```" (downcase chosen-type)))
+      (forward-line -1))
+     ((string= category "Other")
+      (insert (format "::: {.%s}\n\n:::\n" (downcase chosen-type)))
+      (forward-line -1)))))
+
+(with-eval-after-load 'quarto-mode
+  (define-key poly-quarto-mode-map (kbd "C-c C-,") #'insert-quarto-block))
+
+#+end_src
+
+*** julia :init:
+
+[[https://docs.doomemacs.org/v21.12/modules/lang/julia/][doom/julia]]
+init.el で julia を有効にすると，以下のパッケージが導入される．
+
+- julia-mode
+- julia-repl 
+- lsp-julia if +lsp and :tools lsp
+- eglot-jl if +lsp and :tools lsp +eglot
+
+**** TODO julia-repl
+
+[[https://github.com/tpapp/julia-repl][github/julia-repl]]
+
+
+#+begin_src emacs-lisp :tangle no
+(use-package! julia-repl
+  :hook (julia-mode . julia-repl-mode)
+  :config
+  (julia-repl-set-terminal-backend 'vterm)
+
+  (set-popup-rule! "^\\*julia-img\\*" :side 'right :size 0.4 :select nil)
+  
+  (add-to-list 'display-buffer-alist
+               '("\\*julia-doc\\*"
+                 (display-buffer-reuse-window display-buffer-in-side-window)
+                 (side . right)
+                 (window-width . 0.4))))
+#+end_src
+
+#+begin_src  emacs-lisp
+;; Doom が仕込む julia-repl-mode フックを除去（これが Expected term-mode の元凶）
+(after! julia-repl
+  (remove-hook 'julia-mode-hook #'julia-repl-mode))
+
+;; julia-mode（org の edit-special バッファ含む）で julia-vterm を使う
+(after! julia-vterm
+  (add-hook 'julia-mode-hook #'julia-vterm-mode))
+#+end_src
+
+***** EmacsVterm.jl
+
+[[https://github.com/wentasah/EmacsVterm.jl][github/emacsvterm.jl]]
+EmacsVterm.jl を使用するための設定．
+#+begin_src julia :tangle ~/.julia/config/startup.jl
+atreplinit() do repl
+    try
+        @eval using EmacsVterm
+        @eval EmacsVterm.options.image = true
+    catch e
+        @warn "EmacsVterm not loaded" e
+    end
+end
+#+end_src
+
+
+*** processing
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! processing-mode)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! processing-mode
+  :mode ("\\.pde\\'" . processing-mode)
+  :config
+  (defcustom my/processing-git-bash-executable
+    "/mnt/c/Program Files/Git/bin/bash.exe"
+    "Path to Git Bash executable from WSL."
+    :type 'file)
+
+  (defcustom my/processing-cli-command "processing"
+    "Processing command available inside Git Bash."
+    :type 'string)
+
+  (defcustom my/processing-buffer-name "*Processing*"
+    "Buffer name for Processing output."
+    :type 'string)
+
+  ;; 使用箇所より前に定義する
+  (defcustom my/processing-java-tool-options
+    "-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8"
+    "Java options applied to the Processing CLI JVM.
+スケッチ側 JVM には届かないため、そちらは preferences.txt の
+run.options で設定すること。"
+    :type 'string)
+
+  (defvar my/processing--process nil
+    "Current Processing process.")
+
+  ;; ---------------- Path helpers ----------------
+
+  (defun my/processing--to-windows-path (unix-path)
+    "Convert UNIX-PATH to Windows path with forward slashes."
+    (let ((win-path
+           (string-trim
+            (shell-command-to-string
+             (format "wslpath -w %s" (shell-quote-argument unix-path))))))
+      (replace-regexp-in-string "\\\\" "/" win-path)))
+
+  ;; ---------------- Sketch helpers ----------------
+
+  (defun my/processing-sketch-dir ()
+    "Return the sketch directory for the current Processing buffer."
+    (unless buffer-file-name
+      (user-error "このバッファはファイルに保存されていません"))
+    (file-name-directory (file-truename buffer-file-name)))
+
+  (defun my/processing-sketch-name ()
+    "Return the current sketch directory name."
+    (file-name-nondirectory
+     (directory-file-name (my/processing-sketch-dir))))
+
+  (defun my/processing-main-file-name ()
+    "Return current file base name without extension."
+    (unless buffer-file-name
+      (user-error "このバッファはファイルに保存されていません"))
+    (file-name-base buffer-file-name))
+
+  (defun my/processing-validate-sketch ()
+    "Validate Processing sketch naming rule."
+    (let ((sketch-name (my/processing-sketch-name))
+          (main-name   (my/processing-main-file-name)))
+      (unless (string= sketch-name main-name)
+        (user-error
+         "Processing の制約: ディレクトリ名 '%s' とファイル名 '%s.pde' を一致させてください"
+         sketch-name main-name))))
+
+  (defun my/processing-save-pde-buffers ()
+    "Save all modified .pde buffers in the current sketch directory."
+    (let ((sketch-dir (file-truename (my/processing-sketch-dir))))
+      (save-some-buffers
+       t
+       (lambda ()
+         (and buffer-file-name
+              (string-match-p "\\.pde\\'" buffer-file-name)
+              (string-prefix-p sketch-dir (file-truename buffer-file-name)))))))
+
+  (defun my/processing-output-dir (name)
+    "Return output directory NAME under current sketch."
+    (expand-file-name name (my/processing-sketch-dir)))
+
+  ;; ---------------- Command helpers ----------------
+
+  (defun my/processing-action-arg (action)
+    "Return CLI flag for ACTION."
+    (pcase action
+      ('run     "--run")
+      ('present "--present")
+      ('build   "--build")
+      ('export  "--export")
+      (_ (user-error "Unknown action: %S" action))))
+
+  (defun my/processing-git-bash-command (action &optional output-dir)
+    "Build command string executed inside Git Bash."
+    (let* ((sketch-dir (my/processing--to-windows-path
+                        (my/processing-sketch-dir)))
+           (output-arg
+            (when output-dir
+              (concat "--output="
+                      (shell-quote-argument
+                       (my/processing--to-windows-path output-dir)))))
+           (processing-command
+            (string-join
+             (delq nil
+                   (list my/processing-cli-command
+                         "cli"
+                         (concat "--sketch=" (shell-quote-argument sketch-dir))
+                         output-arg
+                         "--force"
+                         (my/processing-action-arg action)))
+             " "))
+           (java-environment
+            (concat "export JAVA_TOOL_OPTIONS="
+                    (shell-quote-argument my/processing-java-tool-options))))
+      ;; stderr を stdout に統合し、Emacs 側の :coding を一元適用させる
+      (concat java-environment " && " processing-command " 2>&1")))
+
+  ;; ---------------- Process / buffer ----------------
+
+  (defun my/processing-buffer ()
+    "Return Processing output buffer."
+    (get-buffer-create my/processing-buffer-name))
+
+  (defun my/processing-show-buffer ()
+    "Show Processing output buffer."
+    (interactive)
+    (display-buffer (my/processing-buffer)))
+
+  (defun my/processing--insert-line (text)
+    "Insert TEXT at end of Processing buffer."
+    (with-current-buffer (my/processing-buffer)
+      (let ((inhibit-read-only t))
+        (goto-char (point-max))
+        (insert text)
+        (unless (string-suffix-p "\n" text)
+          (insert "\n")))))
+
+  (defun my/processing--process-filter (_proc output)
+    "Append OUTPUT to the Processing buffer."
+    (with-current-buffer (my/processing-buffer)
+      (let ((inhibit-read-only t)
+            (moving (= (point) (point-max))))
+        (goto-char (point-max))
+        (insert output)
+        (when moving (goto-char (point-max))))))
+
+  (defun my/processing--process-sentinel (proc event)
+    "Handle Processing process PROC state change EVENT."
+    (when (memq (process-status proc) '(exit signal))
+      (my/processing--insert-line
+       (format "Processing %s" (string-trim event)))
+      (setq my/processing--process nil)))
+
+  (defun my/processing-stop ()
+    "Stop current Processing process."
+    (interactive)
+    (if (and my/processing--process
+             (process-live-p my/processing--process))
+        (progn
+          (interrupt-process my/processing--process)
+          (message "Processing を停止しました"))
+      (message "実行中の Processing はありません")))
+
+  (defun my/processing--run-with-action (action &optional output-dir)
+    "Run Processing with ACTION, saving buffers first."
+    (my/processing-validate-sketch)
+    (my/processing-save-pde-buffers)
+
+    (when (and my/processing--process
+               (process-live-p my/processing--process))
+      (user-error "すでに Processing が実行中です"))
+
+    (let* ((default-directory (my/processing-sketch-dir))
+           (buffer (my/processing-buffer))
+           (inner-cmd (my/processing-git-bash-command action output-dir))
+           ;; make-process 生成前後の既定 coding も固定しておく
+           (coding-system-for-read  'utf-8-unix)
+           (coding-system-for-write 'utf-8-unix))
+      (with-current-buffer buffer
+        (let ((inhibit-read-only t))
+          (read-only-mode -1)
+          (erase-buffer)
+          (insert (format "Processing started: %s\n\n" inner-cmd))
+          (special-mode)))
+
+      (setq my/processing--process
+            (make-process
+             :name "processing"
+             :buffer buffer
+             :command (list my/processing-git-bash-executable "-lc" inner-cmd)
+             :coding '(utf-8-unix . utf-8-unix)
+             :connection-type 'pipe
+             :filter   #'my/processing--process-filter
+             :sentinel #'my/processing--process-sentinel))
+      ;; :stderr は指定しない（2>&1 で統合済み）
+
+      (display-buffer buffer)))
+
+  ;; ---------------- Interactive commands ----------------
+
+  (defun my/processing-run ()
+    "Run current Processing sketch."
+    (interactive)
+    (my/processing--run-with-action 'run))
+
+  (defun my/processing-present ()
+    "Run current Processing sketch in presentation mode."
+    (interactive)
+    (my/processing--run-with-action 'present))
+
+  (defun my/processing-build ()
+    "Build current Processing sketch."
+    (interactive)
+    (let ((output-dir (my/processing-output-dir "build")))
+      (make-directory output-dir t)
+      (my/processing--run-with-action 'build output-dir)))
+
+  (defun my/processing-export ()
+    "Export current Processing sketch."
+    (interactive)
+    (let ((output-dir (my/processing-output-dir "export")))
+      (make-directory output-dir t)
+      (my/processing--run-with-action 'export output-dir)))
+
+  (map! :map processing-mode-map
+        :localleader
+        :desc "Processing run"     "r" #'my/processing-run
+        :desc "Processing present" "p" #'my/processing-present
+        :desc "Processing build"   "b" #'my/processing-build
+        :desc "Processing export"  "e" #'my/processing-export
+        :desc "Processing buffer"  "c" #'my/processing-show-buffer
+        :desc "Processing stop"    "s" #'my/processing-stop))
+#+end_src
+
+** 補完機能
+
+
+*** ミニバッファ補完
+
+**** vertico :wsl:init:windows:
+
+[[https://docs.doomemacs.org/v21.12/modules/completion/vertico/][doom/vertico]]
+
+有効にするには init.el で vertico を ON してください．
+Doom Emacs では vertico を ON にすることで以下のパッケージも自動でインストールされます．
+- all-the-icons-completion if +icons
+- consult
+- consult-flycheck if :checkers syntax
+- embark
+- embark-consult
+- marginalia
+- orderless
+- vertico
+- wgrep
+
+   
+=(vertico-cycle t)= :候補が巡る
+:config 内は TAB で候補選択・移動を可能にするための設定です．
+
+
+#+begin_src emacs-lisp
+(use-package! vertico
+  :custom
+  (vertico-cycle t)
+  :config
+  (define-key vertico-map (kbd "<tab>") #'vertico-next)
+  (define-key vertico-map (kbd "<backtab>") #'vertico-previous)
+  (define-key vertico-map (kbd "RET") #'vertico-directory-enter))
+#+end_src
+
+
+**** Orderless の設定
+
+[[https://github.com/oantolin/orderless][github/orderless]]
+
+Emacs 全体の補完スタイルを Orderless ベースにする．
+Emacs デフォルトでは前方一致検索のみに対応しているところを，より柔軟な検索を可能にする
+
+#+begin_src emacs-lisp :tangle no
+(package! orderless)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! orderless
+  :init
+  (setq completion-styles '(orderless basic)
+        completion-category-defaults nil
+        ;; completion-category-overrides '((file (style particul-completion)))
+        )
+  :config
+  (with-eval-after-load 'migemo
+    (defun orderless-migemo (component)
+      (let ((pattern (downcase (migemo-get-pattern component))))
+        (condition-case nil
+            (progn (string-match-p pattern "") pattern)
+          (invalid-regexp nil))))
+    (add-to-list 'orderless-matching-styles 'orderless-migemo))
+
+  (setq orderless-matching-styles 
+        '(orderless-literal 
+          orderless-prefixes
+          orderless-initialism
+          orderless-regexp))
+
+)
+#+end_src
+
+***** init
+
+- =completion-styles '(orderless basic=: 補完スタイルの優先順位を 1. orderless, 2. emacs にする．
+- =completion-category-defaults nil=: Emacs にはファイル名やバッファ名などカテゴリ単位のデフォルト補完設定があるが，orderless を全体に効かせたい場合，これを nil にする．
+- =completion-category-overrides '((file (style particul-completion)))=: ファイル補完は orderless ではなく， =particul-completion= を使う．
+
+***** migemo
+
+- =(with-eval-after-load 'migemo=: migemo がロードされてから設定する
+- =(let ((pattern (downcase (migemo-get-pattern component))))=: =component= (orderless の検索語句)を =migemo-get-pattern= に入力して日本語の正規表現にする．
+   
+***** orderless-matching-styles
+
+- orderless-literal: 完全一致
+- orderless-prefixes: 前方一致
+- orderless-initialism: 頭文字一致(ff -> find-file)
+- orderless-regexp: 正規表現でマッチ
+
+***** orderless-style-dispatchers(不使用)
+
+特定の入力文字列に対してどのマッチングを用いるかを制御する． =orderless-affix-dispatch= は=,$,^のような接辞で切り替え．
+
+**** marginalia
+
+[[https://github.com/minad/marginalia][github/marginalia]]
+
+#+CAPTION: maginalia-mode が ON のとき
+#+ATTR_HTML: 40%
+[[/home/sumoto/.doom.d/fig/setting-emacs_20251126_000101.png]]
+
+#+CAPTION: maginalia-modeがOFFのとき
+#+ATTR_HTML: 40%
+
+[[/home/sumoto/.doom.d/fig/setting-emacs_20251126_000138.png]]
+
+#+begin_src emacs-lisp
+  (use-package! marginalia
+    :init (marginalia-mode)
+    :config
+    (setq marginalia-annotators-lighter ""))
+#+end_src
+
+- =(setq marginalia-annotators-lighter "")=: Org 関連のバッファ以外で marginalia を無効化する
+
+
+
+*** バッファ内(コード)補完
+
+**** company
+
+[[https://docs.doomemacs.org/v21.12/modules/completion/company/][doom/company]]
+
+init.el で company を有効にしてください．
+以下の package も自動で導入されます．
+
+- company-box if +childframe
+- company-dict
+- company-mode
+
+#+begin_src emacs-lisp
+(use-package! company
+  :defer t
+  :custom
+  (company-minimum-prefix-length 1)
+  (company-idle-delay 0.2)
+  (company-selection-wrap-around t)
+  (company-tooltip-align-annotations t)
+  (company-require-match nil)
+  :config
+  (setq company-frontends
+        '(company-pseudo-tooltip-unless-just-one-frontend
+          company-preview-frontend
+          company-echo-metadata-frontend))
+  (global-company-mode t))
+#+end_src
+
+- ~(company-minimum-prefix-length 1)~: 1 文字目から補完開始
+- ~(company-idle-delay 0.2)~: 補完開始までの遅延(秒)
+- ~(company-selection-wrap-around t)~: 補完候補が循環をする(t)
+- ~(company-tooltip-align-annotations t)~: アノテーション整列
+- ~(company-require-match nil)~: マッチしない文字列も許可(nil)，tだと候補から必ず選択しなければならない．
+
+
+~company-frontends~: 補完がどのように表示されるか
+- ~company-pseudo-tooltip-unless-just-one-frontend~:ポップアップ表示
+- ~company-preview-frontend~: カーソル右側に preview
+- ~company-echo-metadata-frontend~: 選択中の候補の 型情報・ Docstring の要約 をミニバッファに表示
+
+**** company-box
+
+#+begin_src emacs-lisp
+(use-package! company-box
+  :after company
+  :hook (company-mode . company-box-mode)
+  :config
+
+  (with-eval-after-load 'company-box-doc
+
+    (defun my/company-box-doc-fit-in-window (frame)
+      "company-box の documentation を現在のバッファ本文内に収める。"
+      (when (frame-live-p frame)
+        (let* ((box-frame (company-box--get-frame))
+               (origin-window
+                (and (frame-live-p box-frame)
+                     (frame-local-getq
+                      company-box-window-origin
+                      box-frame))))
+
+          (when (window-live-p origin-window)
+            (let* ((edges (window-body-pixel-edges origin-window))
+                   (body-top    (nth 1 edges))
+                   (body-bottom (nth 3 edges))
+
+                   (pos (frame-position frame))
+                   (x   (car pos))
+                   (y   (cdr pos))
+
+                   (new-y (max y body-top))
+
+                   ;; mode-line の少し上までに制限
+                   (max-height
+                    (max 1 (- body-bottom new-y 8)))
+
+                   (new-height
+                    (min (frame-text-height frame)
+                         max-height)))
+
+              (set-frame-position frame x new-y)
+              (set-frame-size
+               frame
+               (frame-text-width frame)
+               new-height
+               t))))))
+
+    (advice-add
+     'company-box-doc--set-frame-position
+     :after
+     #'my/company-box-doc-fit-in-window)))
+#+end_src
+
+
+
+**** eglot
+
+[[https://github.com/joaotavora/eglot][github/eglot]]
+[[https://www.gnu.org/software/emacs/manual/html_node/eglot/index.html#SEC_Contents][emacs/manual/eglot]]
+LSP クライアント．補完の中身を提供する．
+config 以下で接続設定をしなくても lsp サーバーがインストールされていれば自動で接続されるようだが，設定しておいたほうが無難かも．
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! eglot)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! eglot
+  :defer t
+  :hook ((python-mode . eglot-ensure)
+         (julia-mode . eglot-ensure)
+         (LaTeX-mode . eglot-ensure))
+  :custom
+  (eglot-autoshutdown t)
+  (eglot-extend-to-xref t)
+  (eglot-sync-connect nil)
+  (eglot-connect-timeout 60)
+  (eldoc-echo-area-use-multiline-p t)
+  :config
+  (setf (alist-get 'LaTeX-mode  eglot-server-programs) '("texlab"))
+  (defun my/eglot-texlab-tame ()
+    (setq-local eglot-ignored-server-capabilities
+                (append (or eglot-ignored-server-capabilities '())
+                        '(:documentSymbolProvider))))
+  (add-hook 'LaTeX-mode-hook #'my/eglot-texlab-tame)
+  
+  (setf (alist-get 'python-mode eglot-server-programs)
+        '("pyright-langserver" "--stdio"))
+  (setf (alist-get 'julia-mode eglot-server-programs)
+        ;; '("julia" "--startup-file=no" "--history-file=no"
+        ;;   "-e" "using LanguageServer; runserver()")
+        '("julia"
+                  "--startup-file=no"
+                  "--history-file=no"
+                  "-e"
+                  "using LanguageServer; runserver()")
+        )
+  )
+#+end_src
+
+- ~(eglot-autoshutdown t)~: ファイルを閉じたとき，LSP サーバも自動終了
+- ~(eglot-extend-to-xref t)~: xref(M-.の定義ジャンプ)が Edlot の情報を利用できる
+- ~(eglot-sync-connect nil)~: LSP に接続するまで Emacs が待ち続ける(t)かバックグラウンドで実行(nil)か
+- ~(eglot-connect-timeout 15)~: LSP へのコネクションタイムアウト
+- ~(eldoc-echo-area-use-multiline-p t)~: echo エリアでの複数行表示を許可(t)
+
+- ~(setf (alist-get 'LaTeX-mode  eglot-server-programs) '("texlab"))~: LaTeX の LSP に texlab を使用する
+- ~my/eglot-texlab-tame ()~: texlab の document symbol provider は無視
+
+***** org-edit-special 用 eglot の設定
+
+org-babel の C-c '(org-edit-special)で開かれる分離バッファでも Eglot を動かすための設定
+org-edit-special は
+- buffer-file-name が nil: LSP はファイル名(または path)が必要
+- default-directory が不定: LSP はバッファがどのプロジェクトに属しているかを判断して LSP を起動する．そもそもプロジェクトルートがわからないと起動しない．
+などの理由で eldoc が使用できなかったので，擬似的に属するプロジェクトと buffer-file-name を与える．
+
+1. default-directory を元の org ファイルの場所に設定
+2. 擬似的な buffer-file-name を与える
+
+#+begin_src emacs-lisp
+(defun my/org-src--fake-filename-for (mode)
+  "major-modeに応じて拡張子つきの擬似ファイル名を返す。"
+  (concat ".org-src-" (md5 (format "%s:%s" (buffer-name) mode))
+          (pcase mode
+            ('julia-mode ".jl")
+            ('python-mode ".py")
+            ('ess-r-mode  ".R")
+            ('LaTeX-mode  ".tex")
+            (_ ".txt"))))
+
+(defun my/org-src-ensure-eglot ()
+  "org-edit-special用分離バッファでもEglotと補完を有効化する(全言語対象)"
+  (when (derived-mode-p 'prog-mode)
+    (let* ((parent (buffer-file-name (buffer-base-buffer)))
+           (root   (or (and parent (file-name-directory parent))
+                       (when-let ((pr (project-current nil)))
+                         (project-root pr))
+                       default-directory)))
+      (when root
+        (setq-local default-directory root)))
+
+    ;; 擬似ファイル名を与える
+    (unless buffer-file-name
+      (setq-local buffer-file-name
+                  (expand-file-name (my/org-src--fake-filename-for major-mode)
+                                    default-directory))
+      ;; うっかり保存・自動保存されないように保護
+      (setq-local buffer-offer-save nil)
+      (setq-local make-backup-files nil)
+      (setq-local auto-save-default nil))
+
+    ;; Eglotを起動・このバッファを管理対象に
+    (eglot-ensure)
+
+    ;; ;; CAPFにEglotを最優先で差し込む（他のCAPFと共存可）
+    ;; (add-hook 'completion-at-point-functions
+    ;;           #'eglot-completion-at-point
+    ;;           -10 t)
+    ))
+
+(add-hook 'org-src-mode-hook #'my/org-src-ensure-eglot)
+#+end_src
+
+**** eldoc
+
+カーソル位置の関数や変数のドキュメントを echo-area にリアルタイム表示
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! eldoc)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! eldoc
+  :defer t
+  :custom
+  (eldoc-idle-delay 0.3)
+  :config
+  (global-eldoc-mode 1))
+#+end_src
+
+        
+**** eldoc-box
+
+eldoc の情報をポップアップ表示する
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! eldoc-box)
+#+end_src
+
+#+begin_src emacs-lisp
+
+(use-package! eldoc-box
+  :after (eldoc eglot)
+  :config
+  
+  ;; eldoc-box フレームがある時だけ安全にスクロールするヘルパ
+  (defun my/eldoc-box--visible-p ()
+    (and (boundp 'eldoc-box--frame) (frame-live-p eldoc-box--frame)
+         (boundp 'eldoc-box--buffer) (buffer-live-p eldoc-box--buffer)))
+
+  (defun my/eldoc-box-scroll-down ()
+    "eldoc-box が出ていれば中身を下へスクロール（内容を進める）。"
+    (interactive)
+    (when (my/eldoc-box--visible-p)
+      (with-current-buffer eldoc-box--buffer
+        (with-selected-frame eldoc-box--frame
+          (ignore-errors (scroll-up 3))))))
+
+  (defun my/eldoc-box-scroll-up ()
+    "eldoc-box が出ていれば中身を上へスクロール（戻る）。"
+    (interactive)
+    (when (my/eldoc-box--visible-p)
+      (with-current-buffer eldoc-box--buffer
+        (with-selected-frame eldoc-box--frame
+          (ignore-errors (scroll-down 3))))))
+
+  (defun my/eldoc-box-quit ()
+    (interactive)
+    (when (my/eldoc-box--visible-p)
+      (eldoc-box-quit-frame))))
+#+end_src
+
+
+
+**** cape
+
+#+begin_src emacs-lisp :tangle no
+(package! cape)
+#+end_src
+
+#+begin_src emacs-lisp :tangle no
+(use-package! cape
+  :defer t)
+
+(defun my/julia-org-src-eglot-capf ()
+  "org-edit-special の Julia バッファで Eglot CAPF を Cape で安定化する。"
+  (when (and (derived-mode-p 'julia-mode)
+             (bound-and-true-p org-src-mode)
+             (eglot-current-server))
+    (require 'cape)
+    (company-mode 1)
+    (setq-local company-backends '((company-capf)))
+    (setq-local company-frontends
+                '(company-pseudo-tooltip-frontend
+                  company-echo-metadata-frontend))
+    (setq-local company-minimum-prefix-length 1)
+    (setq-local company-idle-delay 0.2)
+    (setq-local completion-at-point-functions
+                (list
+                 (cape-capf-buster
+                  (cape-capf-noninterruptible
+                   (cape-capf-silent #'eglot-completion-at-point)))))))
+
+(add-hook 'eglot-managed-mode-hook #'my/julia-org-src-eglot-capf)
+#+end_src
+
+** org-mode
+
++org-latex-preview などを使いたいので，doom が設定している org のバージョンではなく，dev 版をインストール([[https://abode.karthinks.com/org-latex-preview/][org-latex-preview]])+
+-> org-latex-preview は使わなくなった．
+
+#+begin_src emacs-lisp :tangle no
+(package! org :recipe
+  (:host nil :repo "https://git.tecosaur.net/mirrors/org-mode.git" :remote "mirror" :fork
+         (:host nil :repo "https://git.tecosaur.net/tec/org-mode.git" :branch "dev" :remote "tecosaur")
+         :files
+         (:defaults "etc")
+         :build t :pre-build
+         (with-temp-file "org-version.el"
+           (require 'lisp-mnt)
+           (let
+               ((version
+                 (with-temp-buffer
+                   (insert-file-contents "lisp/org.el")
+                   (lm-header "version")))
+                (git-version
+                 (string-trim
+                  (with-temp-buffer
+                    (call-process "git" nil t nil "rev-parse" "--short" "HEAD")
+                    (buffer-string)))))
+             (insert
+              (format "(defun org-release () \"The release version of Org.\" %S)\n" version)
+              (format "(defun org-git-version () \"The truncate git commit hash of Org mode.\" %S)\n" git-version)
+              "(provide 'org-version)\n"))))
+  :pin nil)
+
+(unpin! org)
+#+end_src
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! nov)
+(package! djvu)
+#+end_src
+
+*** 基本設定
+
+**** org-mode のディレクトリを設定 :wsl:windows:
+
++私は windows 側に org-directory を置いているが，wsl 側に置いても良い．+
+magit やファイルを開く動作などが重かったので wsl 側に置くことにした．
+
+
+#+begin_src emacs-lisp
+(setq org-directory "~/org")
+#+end_src
+
+**** org-cycle-list-bullet :wsl:windows:
+
+#+begin_src emacs-lisp
+(map! "C-c b" #'org-cycle-list-bullet)
+#+end_src
+
+**** shift の設定 :wsl:windows:
+
+org-mode で shift を通常使用(always)
+t だと shift が org-mode 用の特別なキーバインドに使用される．(S-<right>で TODO を挿入など)
+#+begin_src emacs-lisp
+(after! org
+  (setq org-support-shift-select 'always))
+#+end_src
+
+
+**** company と連携
+
+#+begin_src emacs-lisp
+(after! org
+  (set-company-backend! 'org-mode
+    '(company-files :with company-capf)
+    'company-capf
+    'company-dabbrev)
+  :config
+    (setq org-html-doctype "html5")
+    (setq org-html-html5-fancy t)
+  )
+
+#+end_src
+
+
+**** $$で囲む
+
+$$ではなく，\(\)を使うようになったので必要なくなった．
+
+#+begin_src emacs-lisp :tangle no
+(defun my/org-math-wrap-dollar ()
+  "選択範囲があれば $...$ で囲む。なければ $ $ を挿入。"
+  (interactive)
+  (if (use-region-p)
+      (let ((beg (region-beginning))
+            (end (region-end)))
+        (goto-char end)
+        (insert "$")
+        (goto-char beg)
+        (insert "$"))
+    (insert "$$")
+    (backward-char 1)))
+
+(after! org
+  (map! :map org-mode-map
+        "M-$" #'my/org-math-wrap-dollar))
+#+end_src
+
+
+**** クリップボード画像挿入関数
+
+#+begin_src emacs-lisp
+(defun my/org--as-windows-path (unix-path)
+  "WSLのUNIX-PATHをWindowsパスに変換する。"
+  (string-trim
+   (shell-command-to-string
+    (concat "wslpath -w "
+            (shell-quote-argument unix-path)))))
+
+(defun my/org--powershell (script)
+  "PowerShell.exeでSCRIPT を実行し、終了コードを返す。"
+  (call-process "powershell.exe" nil nil nil
+                "-NoProfile" "-Sta" "-Command"
+                (concat "& {" script "}")))
+
+(defun my/paste-image-to-fig ()
+  "クリップボードの画像をfig/に保存し、orgに挿入する。"
+  (interactive)
+
+  (unless buffer-file-name
+    (user-error "このバッファでは画像を挿入できません"))
+
+  (let* ((base-dir  (file-name-directory buffer-file-name))
+         (fig-dir   (expand-file-name "fig/" base-dir))
+         (_         (make-directory fig-dir t))
+         (name-base (file-name-sans-extension
+                     (file-name-nondirectory buffer-file-name)))
+         (timestamp (format-time-string "%Y%m%d_%H%M%S"))
+         (target    (expand-file-name
+                     (format "%s_%s.png" name-base timestamp)
+                     fig-dir))
+         (win-path  (my/org--as-windows-path target))
+         (ps-script (format "(Get-Clipboard -Format image).Save('%s')" win-path)))
+
+    (unless (zerop (my/org--powershell ps-script))
+      (user-error "クリップボードに画像がありません"))
+
+    (insert (format "[[%s]]" target))
+    (org-display-inline-images)))
+#+end_src
+
+
+
+**** org-emphasis
+
+[[https://github.com/QiangF/org-extra-emphasis][github/org-extra-emphasis]]
+
+#+begin_quote
+Text enclosed in !! is highlighted in yellow, and exported likewise
+Text enclosed in !@ is displayed in red, and exported likewise
+#+end_quote
+
+#+begin_src emacs-lisp :tangle no
+(package! ox-odt
+  :recipe (:host github
+           :repo "kjambunathan/org-mode-ox-odt"
+           :files ("lisp/ox-odt.el"
+                   "lisp/ox-ods.el"
+                   "lisp/odt.el"
+                   "etc"
+                   "docs"
+                   "contrib/odt/LibreOffice")))
+(package! org-extra-emphasis
+  :recipe (:host github :repo "QiangF/org-extra-emphasis" :files ("*.el")))
+#+end_src
+
+#+begin_src emacs-lisp :tangle no
+(after! org
+  (require 'org-extra-emphasis))
+#+end_src
+
+
+*** org-modern
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-modern)
+#+end_src
+
+org-mode の外観をリッチ&モダンに．
+#+begin_src emacs-lisp
+(use-package! org-modern
+  :after org
+  :hook
+  (org-mode . org-modern-mode)
+  (org-agenda-finalize . org-modern-agenda)
+  :config
+  (setq org-hide-emphasis-markers t
+        org-pretty-entities t
+        org-ellipsis " …"
+        org-auto-align-tags nil
+        org-tags-column 0
+        org-agenda-tags-column 0
+        org-special-ctrl-a/e t
+        org-insert-heading-respect-content t
+        org-modern-keyword nil)
+
+  (setq org-modern-star '("◉" "○" "◆" "◇"))
+  (global-org-modern-mode t)
+  )
+#+end_src
+
+
+
+*** org-modern-indent
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-modern-indent
+  :recipe (:host github
+           :repo "jdtsmith/org-modern-indent"))
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! org-modern-indent
+  :after org
+  :config
+  (setq org-startup-indented t)
+  (add-hook 'org-mode-hook #'org-modern-indent-mode 90))
+#+end_src
+
+*** org-appear
+
+マークアップ要素の表示/非表示を動的に切り替え
+[[https://github.com/awth13/org-appear][github/org-appear]]
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-appear)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! org-appear
+  :after org
+  :hook
+  (org-modern-mode . org-appear-mode)
+  :config
+  (setq org-appear-trigger 'always
+        org-appear-autolinks t
+        org-appear-autosubmarkers t
+        org-appear-autoemphasis t
+        org-appear-autokeywords t
+        org-appear-autoentities t
+        org-appear-inside-latex t))
+#+end_src
+
+*** TODO org-roam
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! sqlite3) ;; org-roamの前提パッケージ
+(package! org-roam) ;; ノートの関係性を管理する知識ベース
+(package! org-roam-ui) ;; org-roamのグラフ可視化インターフェース
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! org-roam
+  :after org
+  :commands (org-roam-node-find org-roam-buffer-toggle)
+  :init
+  (setq org-roam-directory            "~/org/roam"
+        org-roam-db-location
+        (expand-file-name "org-roam.db" org-roam-directory)
+        org-roam-completion-everywhere t)
+  (unless (file-exists-p org-roam-db-location)
+    (org-roam-db-sync)))
+(map! :leader
+      (:prefix ("r" . "Org-roam") 
+       :desc "Find node" "f" #'org-roam-node-find
+       :desc "Toggle buffer" "b" #'org-roam-buffer-toggle
+       :desc "Insert node" "i" #'org-roam-node-insert
+       :desc "Show graph" "g" #'org-roam-graph-show
+       :desc "Show backlinks" "l" #'org-roam-buffer-toggle
+       :desc "Show recent nodes" "r" #'org-roam-node-find-recent
+       :desc "Show all nodes" "a" #'org-roam-node-find-all
+       :desc "Show tags" "t" #'org-roam-node-find-by-tag
+       :desc "Show tags (all)" "T" #'org-roam-node-find-by-tag-all
+       :desc "db-sync" "d" #'org-roam-db-sync))
+#+end_src
+
+*** org-ref
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-ref)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! org-ref
+  :after org)
+#+end_src
+
+*** oxr
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! oxr
+  :recipe (:host github :repo "bdarcus/oxr" :files ("*.el")))
+#+end_src
+
+
+*** org-preview-html
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-preview-html)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! org-preview-html
+  :after org
+  :config
+  (setq org-preview-html-viewer 'xwidget)
+
+  (setq org-preview-html-refresh-configuration 'save))
+#+end_src
+
+- ~(setq org-preview-html-viewer 'xwidget)~: default は eww
+- ~(setq org-preview-html-refresh-configuration 'save)~: 更新タイミングの設定(save, timer, export)
+
+*** org-babel
+
+#+begin_src emacs-lisp
+(after! org
+  (setq org-babel-load-languages
+        '((julia-vterm . t)
+          (python . t)
+          (emacs-lisp . t)
+          (R . t)
+          (js . t)
+          (processing . t)
+          (mermaid . t)))
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   org-babel-load-languages)
+  )
+#+end_src
+
+#+begin_src emacs-lisp
+(map! :after org
+      :map org-mode-map
+      "C-c C-v m" #'org-babel-mark-block)
+#+end_src
+
+**** mermaid :wsl:
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! ob-mermaid)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! ob-mermaid
+  :config
+  (setq ob-mermaid-cli-path "mmdc"))
+#+end_src
+
+mermaid-cli を導入しただけだと実行できない．
+下記のエラーメッセージを参照．
+#+begin_quote
+Error: Could not find Chrome (ver. 131.0.6778.204). This can occur if either
+ 1. you did not perform an installation before running the script (e.g. `npx puppeteer browsers install chrome-headless-shell`) or
+#+end_quote
+
+ターミナルで以下を実行して，chrome-headles-shell の path を通す．
+
+#+begin_src bash
+npx puppeteer browsers install chrome-headless-shell
+#+end_src
+
+path の場所がわからなければ，以下のように探す．
+#+begin_src bash
+find -name chrome-headless-shell
+#+end_src
+
+
+**** julia
+
+org-babel で julia-vterm 経由で(ESS 経由ではなく)julia を実行する．
+[[https://github.com/shg/ob-julia-vterm.el][github/ob-julia-vterm]]
+セッション名は =:session main= としてください．(julia-vterm のデフォルトに揃えるため．)
+こうすることで.org で ~C-c C-c~ と org edit special バッファ上でのコード実行が同一プロセスで実行できます．
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! julia-vterm)
+(package! ob-julia-vterm)
+#+end_src
+
+
+#+begin_src emacs-lisp 
+
+
+(after! org
+  (require 'julia-vterm)
+  (require 'ob-julia-vterm))
+
+(after! ob-julia
+  (require 'ob-julia-vterm)
+  (defalias 'org-babel-execute:julia #'org-babel-execute:julia-vterm)
+  (defalias 'org-babel-variable-assignments:julia #'org-babel-variable-assignments:julia-vterm))
+
+#+end_src
+
+
+
+
+**** R
+
+
+#+begin_src emacs-lisp
+(after! org
+  (require 'ob-R)
+  (setq org-babel-R-command "R --slave --no-save --no-restore --quiet")
+  (setq org-confirm-babel-evaluate nil))
+#+end_src
+
+- ~(setq org-babel-R-command "R --slave --no-save --no-restore --quiet")~: 実行時のオプション設定
+- ~(setq org-confirm-babel-evaluate nil))~: 実行確認をスキップ
+
+*** org/latex
+
+参考にしました：[[https://zenn.dev/gomadoufu/articles/how-to-write-papers-with-org-2025][Emacsのorg-modeで論文を書こう2025]]
+
+
+**** ox-latex
+
+#+begin_src emacs-lisp
+(after! ox-latex
+  (setq org-latex-pdf-process
+        '("latexmk -f %f"))
+  (setq org-latex-with-hyperref nil)
+
+  (add-to-list 'org-latex-classes
+               '("ltjsarticle"
+                 "\\documentclass{ltjsarticle}
+[NO-DEFAULT-PACKAGES]
+[PACKAGES]
+[EXTRA]"
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
+
+  ;; pLaTeX + dvipdfmx 用 jsarticle
+  (add-to-list 'org-latex-classes
+               '("jsarticle"
+                 "\\documentclass[dvipdfmx]{jsarticle}
+[NO-DEFAULT-PACKAGES]
+[PACKAGES]
+[EXTRA]"
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
+
+    ;; IPSJ class (uplatex + dvipdfmx)
+  (add-to-list 'org-latex-classes
+               '("ipsj"
+                 "\\documentclass{ipsj}
+[NO-DEFAULT-PACKAGES]"
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
+  )
+#+end_src
+
+**** oc
+
+#+begin_src emacs-lisp
+(after! oc
+  (setq org-cite-export-processors
+        '((latex natbib))))
+#+end_src
+
+**** citar
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! citar)
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! citar
+  :after oc
+  :custom
+  (org-cite-insert-processor 'citar)
+  (org-cite-follow-processor 'citar)
+  (org-cite-activate-processor 'citar)
+  :bind
+  (:map org-mode-map
+        ("C-c b" . citar-insert-citation)))
+#+end_src
+
+**** 関数
+
+#+begin_src emacs-lisp
+(defvar my/org-latex-process nil
+  "latexmk 非同期プロセス")
+
+(defvar my/org-latex-export-timer 0
+  "Counts seconds while latexmk is running.")
+
+(defvar my/org-latex-export-spinner
+  '("◯" "◎" "◉" "◎")
+  "Spinner icons for latexmk progress.")
+
+(defun my/org-latex-export-monitor ()
+  "Monitor latexmk process and show progress in minibuffer."
+  (when (and my/org-latex-process
+             (process-live-p my/org-latex-process))
+    (setq my/org-latex-export-timer
+          (1+ my/org-latex-export-timer))
+    (let* ((n (length my/org-latex-export-spinner))
+           (icon (nth (mod my/org-latex-export-timer n)
+                      my/org-latex-export-spinner)))
+      (message "%s PDF生成中… %ds"
+               icon my/org-latex-export-timer))
+    (run-at-time 1 nil #'my/org-latex-export-monitor)))
+
+(defun my/org-latex-export-start-monitor ()
+  "Start monitoring latexmk process."
+  (setq my/org-latex-export-timer 0)
+  (message "↪️ PDF生成開始…")
+  (run-at-time 1 nil #'my/org-latex-export-monitor))
+
+(defun my/org-latex-export-async ()
+  "Org → LaTeX → latexmk を非同期で実行し、進行状況を message に表示する。"
+  (interactive)
+
+  ;; 二重起動防止
+  (when my/org-latex-process
+    (user-error "すでに PDF 生成中です"))
+
+  ;; Org バッファ確認
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Org バッファではありません"))
+
+  ;; 保存ファイル確認
+  (unless buffer-file-name
+    (user-error "この Org ファイルは保存されていません"))
+
+  ;; 念のため保存
+  (save-buffer)
+
+  (let* ((org-file buffer-file-name)
+         (tex-file (file-name-nondirectory
+                    (concat (file-name-sans-extension org-file) ".tex")))
+         (default-directory (file-name-directory org-file)))
+
+    ;; Org → LaTeX（同期）
+    (message "⚡ Org → LaTeX 変換中…")    
+    (org-latex-export-to-latex)
+
+    ;; latexmk 非同期開始
+    (setq my/org-latex-process
+          (start-process
+           "org-latexmk" "*org-latexmk*"
+           "latexmk" "-f" tex-file))
+
+    ;; 進行状況表示開始
+    (my/org-latex-export-start-monitor)
+
+    ;; 終了処理
+    (set-process-sentinel
+     my/org-latex-process
+     (lambda (proc _event)
+       (when (memq (process-status proc) '(exit signal))
+         (setq my/org-latex-process nil)
+         (if (= (process-exit-status proc) 0)
+             (message "✔ PDF生成完了（%ds）"
+                      my/org-latex-export-timer)
+           (progn
+             (message "✘ PDF生成失敗（%ds）— *org-latexmk* を表示"
+                      my/org-latex-export-timer)
+             (when-let ((buf (get-buffer "*org-latexmk*")))
+               (display-buffer
+                buf
+                '((display-buffer-at-bottom)
+                  (window-height . 0.3)))
+               (with-current-buffer buf
+                 (goto-char (point-max)))))))))))
+#+end_src
+
+#+begin_src emacs-lisp
+(map! :after org
+      :map org-mode-map
+      "C-c C-x z" #'my/org-latex-export-async)
+#+end_src
+
+#+begin_src emacs-lisp
+(defun my/org-latex-export-stop ()
+  "Stop running latexmk process politely, then force if needed."
+  (interactive)
+  (cond
+   ((and my/org-latex-process (process-live-p my/org-latex-process))
+    ;; まずは Ctrl-C 相当
+    (interrupt-process my/org-latex-process)
+    (run-at-time
+     0.3 nil
+     (lambda ()
+       (when (and my/org-latex-process (process-live-p my/org-latex-process))
+         ;; まだ生きてたら強制終了
+         (kill-process my/org-latex-process))
+       (setq my/org-latex-process nil)
+       (message "⛔ PDF生成を停止しました（%ds）" my/org-latex-export-timer))))
+   (t
+    (message "現在実行中のPDF生成はありません"))))
+#+end_src
+
+**** org-latex-preview
+
+特に必要なくなったので使用していない．
+#+begin_src emacs-lisp :tangle no
+(after! org
+  (add-hook 'org-mode-hook #'org-latex-preview-mode)
+  (setq org-latex-preview-process-precompile nil)
+  (setq-local org-latex-precompile nil))
+#+end_src
+
+
+
+#+begin_src emacs-lisp
+(map! :after org
+      :map org-mode-map
+      "C-c C-x r" #'org-ref-insert-link-menu)
+#+end_src
+
+**** ignore tag を付けた headline を出力しない
+
+#+begin_src emacs-lisp
+(after! ox
+  (require 'ox-extra)
+  (ox-extras-activate '(ignore-headlines)))
+#+end_src
+
+#+begin_src emacs-lisp
+(after! ox
+  (require 'cl-lib)
+
+  (defun my/org-export-delete-comments (_backend)
+    "Delete Org comment elements in the export buffer."
+    (save-excursion
+      (let ((tree (org-element-parse-buffer)))
+        (cl-loop for c in (reverse (org-element-map tree 'comment #'identity))
+                 for b = (org-element-property :begin c)
+                 for e = (org-element-property :end c)
+                 do (delete-region b e)))))
+
+  (add-hook 'org-export-before-processing-hook #'my/org-export-delete-comments))
+#+end_src
+
+
+*** org-hugo
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! ox-hugo)
+#+end_src
+
+#+begin_src emacs-lisp
+(after! ox
+  ;; (require 'ox-html
+  (require 'ox-hugo)
+(setq org-hugo-goldmark t))
+#+end_src
+
+**** org 用 callout block
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-special-block-extras)
+#+end_src
+
+***** TODO 関数
+
+html head 追記
+#+begin_src emacs-lisp
+(defun my/osbe--append-to-org-html-head-extra (str)
+  "Append STR to `org-html-head-extra`."
+  (setq org-html-head-extra (concat org-html-head-extra str)))
+#+end_src
+
+レンダラ
+#+begin_src emacs-lisp
+
+(defconst my/quarto-shadow "0 2px 4px rgba(0,0,0,0.08)")
+
+(defun my/plist-get* (plist key &optional default)
+  "Get KEY from PLIST, or DEFAULT if missing."
+  (let ((v (plist-get plist key)))
+    (if (null v) default v)))
+
+(defun my/render-icon (icon color)
+  "Render MDI icon HTML (or empty string if ICON is nil)."
+  (if icon
+      (format "<i class=\"mdi %s quarto-icon\" style=\"color:%s;\"></i> "
+              icon color)
+    ""))
+
+(defun my/quarto-container-style (border)
+  "Common style for the outer container (div/details)."
+  (format "border-radius:6px; margin:1em 0; border-left:4px solid %s; box-shadow:%s;"
+          border my/quarto-shadow))
+
+(defun my/quarto-header-style (bg border)
+  "Common style for the header row (div/summary)."
+  (format (concat
+           "display:flex; align-items:center; font-weight:600;"
+           "padding:0.6em 1em; background-color:%s;"
+           "color:%s; font-size:0.95em; line-height:1.5; min-height:2.2em;")
+          bg border))
+
+(defun my/quarto-content-style (bg)
+  "Common style for the content section."
+  (format "padding:0.5em 1em; background-color:%s;" bg))
+
+(defun my/render-block (params)
+  "Render a static Quarto/Hugo-Admonitions-like block."
+  (let* ((type       (my/plist-get* params :type))
+         (title      (my/plist-get* params :title))
+         (contents   (my/plist-get* params :contents))
+         (icon       (my/plist-get* params :icon))
+         ;; user-adjustable colors
+         (border     (my/plist-get* params :border))
+         (header-bg  (my/plist-get* params :header-bg))
+         (content-bg (my/plist-get* params :content-bg))
+         (icon-color (my/plist-get* params :icon-color)))
+    (format
+     (concat
+      "<div class=\"quarto-%s\" style=\"%s\">"
+      "  <div style=\"%s\">"
+      "    %s<span>%s</span>"
+      "  </div>"
+      "  <div style=\"%s\">%s</div>"
+      "</div>")
+     type
+     (my/quarto-container-style border)
+     (my/quarto-header-style header-bg border)
+     (my/render-icon icon icon-color)
+     title
+     (my/quarto-content-style content-bg)
+     contents)))
+
+(defun my/render-fold (params)
+  "Render a foldable block."
+  (let* ((type        (my/plist-get* params :type))
+         (title       (my/plist-get* params :title))
+         (contents    (my/plist-get* params :contents))
+         (icon        (my/plist-get* params :icon))
+         ;; user-adjustable colors
+         (border      (my/plist-get* params :border))
+         (header-bg   (my/plist-get* params :header-bg))
+         (content-bg  (my/plist-get* params :content-bg))
+         (icon-color  (my/plist-get* params :icon-color))
+         (arrow-color (my/plist-get* params :arrow-color)))
+    (format
+     (concat
+      "<details class=\"quarto-%s\" style=\"%s\">"
+      "  <summary style=\"%s justify-content:space-between; cursor:pointer;\">"
+      "    <span style=\"display:flex; align-items:center;\">%s<span>%s</span></span>"
+      "    <span class=\"quarto-fold-marker\" style=\"color:%s;\">"
+      "      <i class=\"mdi mdi-chevron-right\"></i>"
+      "    </span>"
+      "  </summary>"
+      "  <div style=\"%s\">%s</div>"
+      "</details>")
+     type
+     (my/quarto-container-style border)
+     (my/quarto-header-style header-bg border)
+     (my/render-icon icon icon-color)
+     title
+     arrow-color
+     (my/quarto-content-style content-bg)
+     contents)))
+#+end_src
+
+org-defblock 定義用
+
+#+begin_src emacs-lisp
+(defun my/osbe--defblock (name props)
+  "Define a simple non-fold block NAME with PROPS plist."
+  (eval
+   `(org-defblock ,name (title)
+      ,(format "%s block." name)
+      (my/render-block (list
+                        :type ,(symbol-name name)
+                        :title title
+                        :contents contents
+                        ,@props)))))
+
+(defun my/osbe--defblock-fold (name props)
+  "Define a foldable block NAME with PROPS plist as NAME-fold."
+  (let ((fold-name (intern (format "%s-fold" name))))
+    (eval
+     `(org-defblock ,fold-name (title)
+        ,(format "Foldable %s block." name)
+        (my/render-fold (list
+                         :type ,(symbol-name name)
+                         :title title
+                         :contents contents
+                         ,@props))))))
+
+#+end_src
+
+css/mdi 注入
+#+begin_src emacs-lisp
+(defun my/osbe--inject-head-snippets ()
+  "Inject CSS/links into `org-html-head-extra` (same as original)."
+  ;; 1回目（details トランジション関連）
+  (my/osbe--append-to-org-html-head-extra
+   "<style>
+details .quarto-fold-marker {
+  transition: transform .25s ease;
+}
+details[open] .quarto-fold-marker {
+  transform: rotate(90deg);
+}
+
+.quarto-fold-content {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height .35s ease, opacity .35s ease;
+}
+
+details[open] .quarto-fold-content {
+  max-height: 1500px;
+  opacity: 1;
+}
+</style>")
+
+  ;; 2回目（MDI + summary marker + icon）
+  (my/osbe--append-to-org-html-head-extra
+   "<link href=\"https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css\" rel=\"stylesheet\">
+<style>
+summary { list-style:none; }
+summary::-webkit-details-marker { display:none; }
+.quarto-fold-marker {
+  font-weight:bold;
+  transition:transform .25s cubic-bezier(0.4, 0, 0.2, 1);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:1.2em;
+  margin-left:auto;
+  padding:0 0.25em;
+}
+details[open] .quarto-fold-marker { transform:rotate(90deg); }
+.quarto-icon { font-size:20px; line-height:1.5; margin-right:8px; vertical-align:middle; }
+</style>"))
+
+#+end_src
+
+ブロック一式
+#+begin_src emacs-lisp
+(defun my/osbe-define-block-palette ()
+  "Define note/tip/warning/important/caution blocks (same as original)."
+  ;; NOTE
+  (my/osbe--defblock 'note
+                    '(:icon "mdi-information"
+                      :icon-color "#0d6efd"
+                      :border "#0d6efd"
+                      :header-bg "#e3f2fd"
+                      :content-bg "#f7fbff"))
+  (my/osbe--defblock-fold 'note
+                         '(:icon "mdi-information"
+                           :icon-color "#0d6efd"
+                           :arrow-color "#0d6efd"
+                           :border "#0d6efd"
+                           :header-bg "#e3f2fd"
+                           :content-bg "#f7fbff"))
+
+  ;; TIP
+  (my/osbe--defblock 'tip
+                    '(:icon "mdi-lightbulb-on-outline"
+                      :icon-color "#198754"
+                      :border "#198754"
+                      :header-bg "#e6f4eb"
+                      :content-bg "#f4fbf7"))
+  (my/osbe--defblock-fold 'tip
+                         '(:icon "mdi-lightbulb-on-outline"
+                           :icon-color "#198754"
+                           :arrow-color "#198754"
+                           :border "#198754"
+                           :header-bg "#e6f4eb"
+                           :content-bg "#f4fbf7"))
+
+  ;; WARNING
+  (my/osbe--defblock 'warning
+                    '(:icon "mdi-alert-outline"
+                      :icon-color "#ffc107"
+                      :border "#e3b102"
+                      :header-bg "#fff8e1"
+                      :content-bg "#fffdf5"))
+  (my/osbe--defblock-fold 'warning
+                         '(:icon "mdi-alert-outline"
+                           :icon-color "#ffc107"
+                           :arrow-color "#ffc107"
+                           :border "#e3b102"
+                           :header-bg "#fff8e1"
+                           :content-bg "#fffdf5"))
+
+  ;; IMPORTANT
+  (my/osbe--defblock 'important
+                    '(:icon "mdi-alert-circle-outline"
+                      :icon-color "#dc3545"
+                      :border "#dc3545"
+                      :header-bg "#fdecea"
+                      :content-bg "#fff6f7"))
+  (my/osbe--defblock-fold 'important
+                         '(:icon "mdi-alert-circle-outline"
+                           :icon-color "#dc3545"
+                           :arrow-color "#dc3545"
+                           :border "#dc3545"
+                           :header-bg "#fdecea"
+                           :content-bg "#fff6f7"))
+
+  ;; CAUTION
+  (my/osbe--defblock 'caution
+                    '(:icon "mdi-alert-octagon-outline"
+                      :icon-color "#fd7e14"
+                      :border "#fd7e14"
+                      :header-bg "#ffefd8"
+                      :content-bg "#fffaf3"))
+  (my/osbe--defblock-fold 'caution
+                         '(:icon "mdi-alert-octagon-outline"
+                           :icon-color "#fd7e14"
+                           :arrow-color "#fd7e14"
+                           :border "#fd7e14"
+                           :header-bg "#ffefd8"
+                           :content-bg "#fffaf3")))
+#+end_src
+
+org に組み込むためにまとめる
+#+begin_src emacs-lisp
+(defun my/osbe--insert-my-special-block ()
+  (interactive)
+  (let* ((types '(("note" . "Note block")
+                  ("note-fold" . "Foldable note block")
+                  ("tip" . "Tip block")
+                  ("tip-fold" . "Foldable tip block")
+                  ("warning" . "Warning block")
+                  ("warning-fold" . "Foldable warning block")
+                  ("important" . "Important block")
+                  ("important-fold" . "Foldable important block")
+                  ("caution" . "Caution block")
+                  ("caution-fold" . "Foldable caution block")))
+         (type (completing-read "Block type: " types nil t))
+         (title (read-string "Title: " (cdr (assoc type types)))))
+    (insert (format "#+begin_%s %s\n\n#+end_%s" type title type))
+    (forward-line -1)))
+
+(defun my/osbe-setup-org-insertion ()
+  "Set up `org-structure-template-alist` and advice (same behavior)."
+  (with-eval-after-load 'org
+    (add-to-list 'org-structure-template-alist '("M" . "my-special-block"))
+    (define-advice org-insert-structure-template
+        (:around (orig-fun &rest args) handle-special-block)
+      (if (string= (car args) "my-special-block")
+          (my/osbe--insert-my-special-block)
+        (apply orig-fun args)))))
+
+(defun my/osbe-setup ()
+  "One-shot setup for org-special-block-extras integration."
+  ;; `org-defblock` を確実に使える状態にする
+  (require 'org-special-block-extras)
+
+  ;; HTML head 注入
+  (my/osbe--inject-head-snippets)
+
+  ;; ブロック定義
+  (my/osbe-define-block-palette)
+
+  ;; org挿入補助
+  (my/osbe-setup-org-insertion))
+
+#+end_src
+
+**** main
+
+#+begin_src emacs-lisp
+(use-package! org-special-block-extras
+  :hook (org-mode . org-special-block-extras-mode)
+  :config
+  (my/osbe-setup))
+#+end_src
+
+
+
+
+*** org-reveal
+
+#+begin_src emacs-lisp :tangle packages.el
+(package! org-re-reveal)
+#+end_src
+
+* その他
+
+** zone.identifier 削除コマンド
+
+windows エクスプローラなどで windows 側から wsl 側にファイルをコピーしたときに作成される.zone.identifier ファイルを削除するコマンド．
+
+#+begin_src emacs-lisp
+(defun delete-zone-identifier ()
+  (interactive)
+  (shell-command "find . -type f -name '*:Zone.Identifier' -exec rm {} \\;"))
+
+
+(load! "config-parts/my-zip-file-or-directory.el")
+#+end_src
+
+* TODO これから
+:PROPERTIES:
+:ID:       902f0a7b-4b6c-451a-9961-83c2ab1fb2fa
+:END:
+#+begin_src emacs-lisp
+;; =============================
+;; 起動時のクリーンアップ設定
+;; =============================
+;; (defun cleanup-copilot-images ()
+;;   "Clean up temporary copilot image directory on Emacs startup."
+;;   (let ((copilot-tmp-dir "/tmp/copilot-images/fig/"))
+;;     (when (file-exists-p copilot-tmp-dir)
+;;       (delete-directory copilot-tmp-dir t)
+;;       (message "Cleaned up %s" copilot-tmp-dir))))
+
+;; ;; emacs起動後に実行
+;; (add-hook 'after-init-hook #'cleanup-copilot-images)
+
+
+
+;; =============================
+;; tramp の設定
+;; =============================
+;; (use-package! tramp
+;;   :defer t
+;;   :config
+;;   (setq tramp-default-method "ssh")
+;;   (setq tramp-ssh-controlmaster-options
+;;         "-o ControlMaster=auto
+;;          -o ControlPath='~/.ssh/tramp-%%C'
+;;          -o ControlPersist=10m")
+;;   (setq tramp-connection-timeout 20)
+;;   (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+(after! tramp
+  (setq tramp-default-method "ssh")
+  (setq tramp-verbose 10)
+  (setq tramp-use-ssh-controlmaster-options nil)
+  (setq tramp-remote-shell "/bin/bash")
+  (setq tramp-remote-shell-args '("-c")))
+
+
+;; ------------------------
+;; スニペット & テンプレート
+;; ------------------------
+;; スニペット（yasnippet）
+(use-package! yasnippet
+  :init
+  (yas-global-mode +1)
+  :bind
+  ;; プレフィックスを C-c y に設定
+  (:map yas-keymap
+        ("C-c y n" . yas-next-field)
+        ("C-c y p" . yas-prev-field)
+        ("C-c y e" . yas-expand)))
+
+;; ;; テンプレート（tempel）
+;; (use-package! tempel
+;;   :bind
+;;   ;; プレフィックスを C-c t に設定
+;;   (("C-c t c" . tempel-complete)  ;; complete
+;;    ("C-c t i" . tempel-insert)))   ;; insert
+
+
+
+
+;; (load! "config-parts/copilot.el")
+
+
+
+
+;; =============================
+;; Org-mode — アジェンダ強化
+;; =============================
+;; (use-package! org-agenda
+;;   :config
+;;   (setq org-agenda-files '("~/org/agenda/tasks.org"
+;;                            "~/org/agenda/habits.org"
+;;                            "~/org/agenda/gcal.org"
+;;                            "~/org/agenda/inboxg.org")))
+;; (use-package! org-super-agenda
+;;   :after org-agenda
+;;   :defer t
+;;   :config
+;;   (org-super-agenda-mode)
+;;   )
+
+;; (use-package! org-habit
+;;   :after org
+;;   :config
+;;   (setq org-habit-following-days 7
+;;         org-habit-preceding-days 10
+;;         org-habit-show-habits t))
+
+
+;; (load! "config-parts/org-gcal.el")
+
+
+;; =============================
+;; CRDT の設定
+;; =============================
+(use-package! crdt
+  :defer t
+  :config
+  (setq crdt-exit-hook '(save-buffer))
+  (setq crdt-server-host "0.0.0.0"))
+
+
+
+
+;; =============================
+;; python
+;; ===========================
+;; ~/.config/matplotlib/matplotlibrcに，backendを設定すべし．
+
+
+
+
+
+
+
+
+
+
+
+#+end_src
+
+
+
+
+#+begin_src emacs-lisp :tangle packages.el
+;; -*- no-byte-compile: t; -*-
+;;; $DOOMDIR/packages.el
+
+;; To install a package with Doom you must declare them here and run 'doom sync'
+;; on the command line, then restart Emacs for the changes to take effect -- or
+
+
+;; To install SOME-PACKAGE from MELPA, ELPA or emacsmirror:
+;; (package! some-package)
+
+;; To install a package directly from a remote git repo, you must specify a
+;; `:recipe'. You'll find documentation on what `:recipe' accepts here:
+;; https://github.com/radian-software/straight.el#the-recipe-format
+;; (package! another-package
+;;   :recipe (:host github :repo "username/repo"))
+
+;; If the package you are trying to install does not contain a PACKAGENAME.el
+;; file, or is located in a subdirectory of the repo, you'll need to specify
+;; `:files' in the `:recipe':
+;; (package! this-package
+;;   :recipe (:host github :repo "username/repo"
+;;            :files ("some-file.el" "src/lisp/*.el")))
+
+;; If you'd like to disable a package included with Doom, you can do so here
+;; with the `:disable' property:
+;; (package! builtin-package :disable t)
+
+;; You can override the recipe of a built in package without having to specify
+;; all the properties for `:recipe'. These will inherit the rest of its recipe
+;; from Doom or MELPA/ELPA/Emacsmirror:
+;; (package! builtin-package :recipe (:nonrecursive t))
+;; (package! builtin-package-2 :recipe (:repo "myfork/package"))
+
+;; Specify a `:branch' to install a package from a particular branch or tag.
+;; This is required for some packages whose default branch isn't 'master' (which
+;; our package manager can't deal with; see radian-software/straight.el#279)
+;; (package! builtin-package :recipe (:branch "develop"))
+
+;; Use `:pin' to specify a particular commit to install.
+;; (package! builtin-package :pin "1a2b3c4d5e")
+
+
+;; Doom's packages are pinned to a specific commit and updated from release to
+;; release. The `unpin!' macro allows you to unpin single packages...
+;; (unpin! pinned-package)
+;; ...or multiple packages
+;; (unpin! pinned-package another-pinned-package)
+;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
+;; (unpin! t)
+
+;; (package! yatex)
+;;(package! company-math)
+;; smartchr - スマートな文字列補完機能
+;;(package! smartchr)
+
+
+;;(package! company-auctex)
+
+
+
+
+;; ;; copilot - GitHub Copilotのクライアント
+;; (package! copilot
+;;   :recipe (:host github :repo "copilot-emacs/copilot.el" :files ("*.el")))
+
+;; ;; copilot-chat - GitHub Copilotのチャットインターフェース
+;; (package! copilot-chat
+;;   :recipe (:host github :repo "chep/copilot-chat.el" :files ("*.el")))
+
+;; (package! company-statistics
+;;   :recipe (:host github :repo "company-mode/company-statistics"))
+
+;; (package! company-dwim
+;;   :recipe (:host github :repo "zk-phi/company-dwim"))
+
+;; (package! company-anywhere
+;;   :recipe (:host github :repo "zk-phi/company-anywhere"))
+
+;; (package! company-same-mode-buffers
+;;   :recipe (:host github :repo "zk-phi/company-same-mode-buffers"))
+
+;; ess-view-data - Rのデータフレーム閲覧機能
+(package! ess-view-data
+  :recipe (:host github
+           :repo "ShuguangSun/ess-view-data"
+           :files ("ess-view-data.el")))
+
+;; Org-mode関連パッケージ
+
+;; (package! org-super-agenda) ;; orgアジェンダの高度なグループ化
+
+;; (package! org-journal) ;; 日記管理機能
+;; (package! org-mind-map) ;; マインドマップに変換
+;; (package! org-reveal) ;; Reveal.jsを使ったプレゼン出力
+;; (package! org-gcal) ;; GoogleカレンダーとOrgの同期
+;; orgtbl-aggregate - Org-modeの表計算機能を拡張
+(package! orgtbl-aggregate
+   :recipe (:host github :repo "emacsmirror/orgtbl-aggregate"))
+;; org-superstar - orgの見出しや箇条書きを装飾
+;; (package! org-superstar)
+
+;; (package! better-org-habit
+;;   :recipe (:host github :repo "vberezhnev/better-org-habit.el"))
+
+
+;; tempel - テンプレート挿入システム
+(package! tempel)
+
+;; crdt - 協調リアルタイム編集機能
+(package! crdt)
+
+;; aidermacs - AIによるコーディングアシスタント
+;;(package! aidermacs)
+
+
+
+;; (package! fussy :recipe (:host github :repo "jojojames/fussy"))
+
+
+;; (package! pulsar)
+
+;; (package! tree-sitter)
+;; (package! tree-sitter-langs)
+
+
+
+(package! simple-httpd)
+
+(package! corg
+  :recipe (:host github :repo "isamert/corg.el"))
+
+
+
+;; (package! ox-tufte)
+
+
+
+
+
+#+end_src

@@ -1,0 +1,1144 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © DivergentTrades
+
+//@version=6
+indicator("ICT HP PRO v4", shorttitle = "ICT HP PRO v4", overlay = true, max_lines_count = 500, max_boxes_count = 500, max_labels_count = 500)
+
+//=====================================================================================================================
+// 1. UDTs (USER DEFINED TYPES)
+//=====================================================================================================================
+
+type slz_Point
+    int x
+    float y
+
+type box_info
+    box bx
+    line ce_ln
+    bool is_ifvg
+    bool is_bull_orig
+
+type htf_box_info
+    box bx
+    line ce_ln 
+    bool is_ifvg
+    bool is_bull_orig
+    float top
+    float bot
+
+type lvl_data
+    float p
+    string t_s
+    string t_l
+    color c
+    bool eq
+
+//=====================================================================================================================
+// 2. INPUTS
+//=====================================================================================================================
+
+grp_slz = "[Smart Liquidity] Zones"
+show_slz          = input.bool(true, "Show Smart Liquidity Zones", group = grp_slz)
+slz_length        = input.int(5, "Swing Length", minval=1, tooltip="Number of bars used to confirm Swing Highs and Lows.", group = grp_slz)
+slz_useClose      = input.bool(false, "Use Close for Breakout?", tooltip="If true, requires candle close to break structure. If false, uses wicks (High/Low).", group = grp_slz)
+slz_reduceOverlap = input.bool(true, "Reduce Overlap (Strict Alternation)", tooltip="Forces Bullish and Bearish setups to alternate.", group = grp_slz)
+slz_requireSweep  = input.bool(true, "Require Sweep (LL for Bull, HH for Bear)", tooltip="Ensures the origin of the break first made a Lower Low or Higher High before the MSS.", group = grp_slz)
+slz_bullColor     = input.color(color.new(color.white, 0), title = "Bullish Zone Color", group = grp_slz) 
+slz_bearColor     = input.color(color.new(color.yellow, 0), title = "Bearish Zone Color", group = grp_slz)
+
+grp_disp_levels = "[ICT] Smart Levels"
+distanceleft    = input.int(300, 'Line Extension Left', group=grp_disp_levels)
+distanceright   = input.int(10, 'Label Offset Right', group=grp_disp_levels)
+global_col_on   = input.bool(false, "Use Global Color?", group=grp_disp_levels)
+global_col      = input.color(color.white, "Global Color", group=grp_disp_levels)
+lvl_txt_size    = input.string("Small", "Level Text Size", options=["Tiny", "Small", "Normal", "Large"], group=grp_disp_levels)
+use_full_txt    = input.bool(false, "Use Full Text?", group=grp_disp_levels)
+
+grp_struct       = "[ICT] Market Structure"
+show_struct_line = input.bool(true, "Show MSS/BOS Lines", group=grp_struct)
+show_active_sw   = input.bool(true, "Show Active 4H Range", group=grp_struct)
+c_h4_hi          = input.color(color.new(color.gray, 50), "4H High Color", group=grp_struct)
+c_h4_lo          = input.color(color.new(color.gray, 50), "4H Low Color", group=grp_struct)
+c_h4_eq          = input.color(color.new(color.white, 30), "4H Eq Color", group=grp_struct)
+mss_len          = input.int(5, "Internal MSS Pivot Length", minval=2, group=grp_struct)
+use_displace     = input.bool(true, "Require Displacement", group=grp_struct)
+displace_mult    = input.float(0.8, "ATR Multiplier", step=0.1, group=grp_struct)
+body_ratio_min   = input.float(0.5, "Min Body-to-Wick Ratio", minval=0.1, maxval=1.0, step=0.05, group=grp_struct)
+c_bull_struct    = input.color(color.lime, "Bullish Structure Color", group=grp_struct)
+c_bear_struct    = input.color(color.red, "Bearish Structure Color", group=grp_struct)
+
+grp_fvg_vis     = "[ICT] Current FVG & IFVG"
+show_fvgs       = input.bool(true, "Show Current FVGs", group=grp_fvg_vis)
+show_ifvgs      = input.bool(true, "Show Current IFVGs", group=grp_fvg_vis)
+fvg_filter      = input.string("Both", "Direction Filter", options=["Both", "Bullish Only", "Bearish Only"], group=grp_fvg_vis)
+show_ce         = input.bool(true, "Show C.E. (0.5 Line)", group=grp_fvg_vis)
+fvg_txt_size    = input.string("Tiny", "FVG Text Size", options=["Tiny", "Small", "Normal", "Large"], group=grp_fvg_vis)
+fvg_h_align     = input.string("Left", "Text H-Align", options=["Left", "Center", "Right"], group=grp_fvg_vis)
+fvg_v_align     = input.string("Bottom", "Text V-Align", options=["Top", "Center", "Bottom"], group=grp_fvg_vis)
+c_fvg_bull      = input.color(color.new(color.green, 85), "CT Bullish FVG", group=grp_fvg_vis)
+c_fvg_bear      = input.color(color.new(color.red, 85), "CT Bearish FVG", group=grp_fvg_vis)
+c_ifvg_bull     = input.color(color.new(color.teal, 80), "CT Bullish IFVG", group=grp_fvg_vis)
+c_ifvg_bear     = input.color(color.new(color.orange, 80), "CT Bearish IFVG", group=grp_fvg_vis)
+
+grp_htf_fvg     = "[ICT] HTF FVG"
+show_htf_main   = input.bool(false, "Show HTF FVGs/IFVGs?", group=grp_htf_fvg)
+show_htf_ce     = input.bool(true, "Show HTF C.E. (0.5 Line)", group=grp_htf_fvg) 
+htf_tf          = input.timeframe("240", "HTF Selection", group=grp_htf_fvg)
+c_htf_bull      = input.color(color.new(color.blue, 85), "HTF Bullish FVG", group=grp_htf_fvg)
+c_htf_bear      = input.color(color.new(color.maroon, 85), "HTF Bearish FVG", group=grp_htf_fvg)
+c_htf_ibull     = input.color(color.new(color.aqua, 80), "HTF Bullish IFVG", group=grp_htf_fvg)
+c_htf_ibear     = input.color(color.new(color.purple, 80), "HTF Bearish IFVG", group=grp_htf_fvg)
+
+grp_htf_candles  = "[ICT] HTF Candles Overlay"
+show_htf_candles = input.bool(false, "Show HTF Candles?", group=grp_htf_candles)
+htfc_tf          = input.timeframe("D", "HTF Candle Timeframe", group=grp_htf_candles)
+c_htfc_bull      = input.color(color.new(#089981, 85), "HTF Bullish Color", group=grp_htf_candles)
+c_htfc_bear      = input.color(color.new(#f23645, 85), "HTF Bearish Color", group=grp_htf_candles)
+c_htfc_wick      = input.color(color.new(color.gray, 60), "HTF Wick Color", group=grp_htf_candles)
+htfc_border      = input.bool(true, "Show Candle Borders?", group=grp_htf_candles)
+
+grp_levels      = "[ICT] HTF Levels Selection"
+show_pd         = input.bool(true, "Show Daily High/Low", group=grp_levels)
+show_pd_eq      = input.bool(false, "Show Daily 50% (EQ)", group=grp_levels)
+show_pw         = input.bool(true, "Show Weekly High/Low", group=grp_levels)
+show_pw_eq      = input.bool(false, "Show Weekly 50% (EQ)", group=grp_levels)
+show_pm         = input.bool(true, "Show Monthly High/Low", group=grp_levels)
+show_pm_eq      = input.bool(false, "Show Monthly 50% (EQ)", group=grp_levels)
+show_py         = input.bool(true, "Show Yearly High/Low", group=grp_levels)
+show_py_eq      = input.bool(false, "Show Yearly 50% (EQ)", group=grp_levels)
+show_opens      = input.bool(true, "Show Opens (D/W/M/Y)", group=grp_levels)
+show_midnight   = input.bool(true, "Show NY Midnight Open", group=grp_levels)
+
+c_pd    = input.color(color.red, "Daily Color", group=grp_levels)
+c_pw    = input.color(color.orange, "Weekly Color", group=grp_levels)
+c_pm    = input.color(color.purple, "Monthly Color", group=grp_levels)
+c_py    = input.color(color.blue, "Yearly Color", group=grp_levels)
+c_open  = input.color(color.gray, "Opens Color", group=grp_levels)
+c_midnight = input.color(color.new(color.white, 0), "NY Midnight Color", group=grp_levels)
+
+grp_pro_set     = "[ICT] AI Hunter"
+use_ai_hunter   = input.bool(true, "Enable AI Hunter?", group=grp_pro_set)
+use_htf_poi_filter = input.bool(true, "Filter Signals by HTF POI Taps", group=grp_pro_set) 
+ai_mode         = input.string("Balanced", "AI Sensitivity", options=["Conservative", "Balanced", "Aggressive"], group=grp_pro_set)
+use_ema_filter  = input.bool(false, "Enable Trend Filter (200 EMA)", group=grp_pro_set)
+show_ema200     = input.bool(false, "Show 200 EMA Line?", group=grp_pro_set) 
+c_ema200        = input.color(color.white, "200 EMA Color", group=grp_pro_set) 
+pro_use_time    = input.bool(true, "Filter by Time?", group=grp_pro_set)
+pro_sess_am     = input.session("0830-1000", "AM Session", group=grp_pro_set)
+pro_sess_pm     = input.session("1400-1500", "PM Session", group=grp_pro_set)
+
+grp_tp = "[ICT] AI Projections"
+show_tps = input.bool(true, "Show Take Profit Targets?", group=grp_tp)
+tp1_mult = input.float(1.0, "TP 1 (Std Dev)", step=0.5, group=grp_tp)
+tp2_mult = input.float(2.0, "TP 2 (Std Dev)", step=0.5, group=grp_tp)
+tp3_mult = input.float(2.5, "TP 3 (Std Dev)", step=0.5, group=grp_tp)
+
+grp_lvl_alerts  = "[ICT] Level Alerts & Proximity"
+alert_pd        = input.bool(true, "Alert on Daily Levels", group=grp_lvl_alerts)
+alert_pw        = input.bool(false, "Alert on Weekly Levels", group=grp_lvl_alerts)
+alert_pm        = input.bool(false, "Alert on Monthly Levels", group=grp_lvl_alerts)
+alert_py        = input.bool(false, "Alert on Yearly Levels", group=grp_lvl_alerts)
+alert_opens     = input.bool(true, "Alert on Opens", group=grp_lvl_alerts)
+use_proximity   = input.bool(true, "Enable Proximity Alerts", group=grp_lvl_alerts)
+prox_ticks      = input.int(10, "Proximity Distance (Ticks)", minval=1, group=grp_lvl_alerts)
+alert_cooldown  = input.int(10, "Alert Cooldown (Bars)", minval=1, group=grp_lvl_alerts)
+
+grp_kz = "[ICT] Killzone Boxes"
+show_kz_boxes = input.bool(true, "Show Killzone Boxes", group=grp_kz)
+show_kz_text  = input.bool(true, "Show Killzone Labels", group=grp_kz)
+kz_lon_sess   = input.session("0200-0500", "London Session", group=grp_kz)
+kz_am_sess    = input.session("0830-1100", "NY AM Session", group=grp_kz)
+kz_pm_sess    = input.session("1330-1600", "NY PM Session", group=grp_kz)
+c_kz_lon      = input.color(color.new(color.blue, 90), "London Color", group=grp_kz)
+c_kz_am       = input.color(color.new(color.orange, 90), "NY AM Color", group=grp_kz)
+c_kz_pm       = input.color(color.new(color.red, 90), "NY PM Color", group=grp_kz)
+
+grp_gaps = "[ICT] Opening Gaps (NWOG/NDOG)"
+show_ndog = input.bool(true, "Show NDOG (Daily Gap)", group=grp_gaps)
+show_nwog = input.bool(true, "Show NWOG (Weekly Gap)", group=grp_gaps)
+c_ndog = input.color(color.new(color.yellow, 85), "NDOG Color", group=grp_gaps)
+c_nwog = input.color(color.new(color.fuchsia, 85), "NWOG Color", group=grp_gaps)
+
+grp_smt = "[ICT] SMT Divergence"
+show_smt = input.bool(true, "Show SMT Divergence", group=grp_smt)
+smt_comp_sym = input.symbol("CME_MINI:ES1!", "Correlated Asset (e.g., ES)", group=grp_smt)
+smt_pivot_len = input.int(5, "SMT Pivot Lookback", group=grp_smt)
+col_smt_bear = input.color(color.red, "Bearish SMT Color", group=grp_smt)
+col_smt_bull = input.color(color.green, "Bullish SMT Color", group=grp_smt)
+
+grp_hud = "[ICT] HUD Dashboard"
+show_hud = input.bool(true, "Show HUD Dashboard?", group=grp_hud)
+hud_pos  = input.string("Top Right", "HUD Position", options=["Top Right", "Bottom Right", "Bottom Left", "Top Left"], group=grp_hud)
+hud_size = input.string("Normal", "HUD Text Size", options=["Tiny", "Small", "Normal", "Large"], group=grp_hud)
+
+//=====================================================================================================================
+// 3. HELPERS
+//=====================================================================================================================
+
+var map<string, int> alert_history = map.new<string, int>()
+
+lvl_sz = switch lvl_txt_size
+    "Tiny"   => size.tiny
+    "Small"  => size.small
+    "Normal" => size.normal
+    "Large"  => size.large
+    => size.small
+
+fvg_sz = switch fvg_txt_size
+    "Tiny"   => size.tiny
+    "Small"  => size.small
+    "Normal" => size.normal
+    "Large"  => size.large
+    => size.tiny
+
+fvg_halign = switch fvg_h_align
+    "Left"   => text.align_left
+    "Center" => text.align_center
+    "Right"  => text.align_right
+    => text.align_left
+
+fvg_valign = switch fvg_v_align
+    "Top"    => text.align_top
+    "Center" => text.align_center
+    "Bottom" => text.align_bottom
+    => text.align_bottom
+
+f_mfi = ta.mfi(close, 14)
+f_rsi = ta.rsi(close, 14)
+[f_bb_mid, f_bb_upper, f_bb_lower] = ta.bb(close, 20, 2.0)
+
+get_lvl_txt(short_t, long_t) => use_full_txt ? long_t : short_t
+
+update_visuals(box b, line l, bool is_inv, color c_bg, color c_bd, string txt) =>
+    bool visible = is_inv ? show_ifvgs : show_fvgs
+    box.set_bgcolor(b, visible ? c_bg : color.new(c_bg, 100))
+    box.set_border_color(b, visible ? c_bd : color.new(c_bd, 100))
+    box.set_text(b, visible ? txt : "")
+    box.set_text_halign(b, fvg_halign)
+    box.set_text_valign(b, fvg_valign)
+    if not na(l)
+        line.set_color(l, visible ? color.new(c_bd, 40) : color.new(c_bd, 100))
+
+f_check_level(float lvl, string lvl_name, bool is_active) =>
+    if is_active and not na(lvl)
+        string break_key = lvl_name + "_break"
+        string prox_key  = lvl_name + "_prox"
+        int last_break_bar = alert_history.contains(break_key) ? alert_history.get(break_key) : -999
+        int last_prox_bar  = alert_history.contains(prox_key) ? alert_history.get(prox_key) : -999
+        bool can_break_alert = (bar_index - last_break_bar) >= alert_cooldown
+        bool can_prox_alert  = (bar_index - last_prox_bar) >= alert_cooldown
+        bool cross_up = close > lvl and close[1] <= lvl
+        bool cross_dn = close < lvl and close[1] >= lvl
+        if (cross_up or cross_dn) and can_break_alert
+            if cross_up
+                alert("Bullish Break: " + syminfo.ticker + " crossed ABOVE " + lvl_name + " at " + str.tostring(lvl, format.mintick), alert.freq_once_per_bar_close)
+            if cross_dn
+                alert("Bearish Break: " + syminfo.ticker + " crossed BELOW " + lvl_name + " at " + str.tostring(lvl, format.mintick), alert.freq_once_per_bar_close)
+            alert_history.put(break_key, bar_index)
+        if use_proximity
+            float tick_buffer = prox_ticks * syminfo.mintick
+            float upper_zone = lvl + tick_buffer
+            float lower_zone = lvl - tick_buffer
+            bool prox_up = high >= lower_zone and high[1] < lower_zone and high < lvl
+            bool prox_dn = low <= upper_zone and low[1] > upper_zone and low > lvl
+            if (prox_up or prox_dn) and can_prox_alert
+                if prox_up
+                    alert("Proximity Warning: " + syminfo.ticker + " approaching " + lvl_name + " from below. Level: " + str.tostring(lvl, format.mintick), alert.freq_once_per_bar)
+                if prox_dn
+                    alert("Proximity Warning: " + syminfo.ticker + " approaching " + lvl_name + " from above. Level: " + str.tostring(lvl, format.mintick), alert.freq_once_per_bar)
+                alert_history.put(prox_key, bar_index)
+
+predict_market_pivot(int k, int win_len, int horizon, int conf_thresh, bool run_calc) =>
+    int out_bias = 0
+    float out_conf = 0.0
+    if run_calc
+        float current_mfi = f_mfi
+        float current_rsi = f_rsi
+        float current_bb = f_bb_upper != f_bb_lower ? (close - f_bb_lower) / (f_bb_upper - f_bb_lower) : 0.0
+        float[] dists = array.new_float()
+        int[] dirs = array.new_int()
+        int start_idx = horizon + 1
+        int end_idx = math.min(bar_index, win_len)
+        if bar_index > 100
+            for i = start_idx to end_idx by 2
+                float hist_mfi = f_mfi[i]
+                float hist_rsi = f_rsi[i]
+                float hist_bb = f_bb_upper[i] != f_bb_lower[i] ? (close[i] - f_bb_lower[i]) / (f_bb_upper[i] - f_bb_lower[i]) : 0.0
+                float d = math.sqrt(math.pow(current_mfi - hist_mfi, 2) + math.pow(current_bb - hist_bb, 2) + math.pow(current_rsi - hist_rsi, 2))
+                array.push(dists, d)
+                array.push(dirs, close[i - horizon] > close[i] ? 1 : -1)
+        int bull_votes = 0
+        int bear_votes = 0
+        if array.size(dists) > k
+            for j = 0 to k - 1
+                int min_idx = array.indexof(dists, array.min(dists))
+                int vote = array.get(dirs, min_idx)
+                if vote == 1
+                    bull_votes += 1
+                else
+                    bear_votes += 1
+                array.remove(dists, min_idx)
+                array.remove(dirs, min_idx)
+        float vote_strength_bull = (bull_votes / math.max(k, 1)) * 100.0
+        float vote_strength_bear = (bear_votes / math.max(k, 1)) * 100.0
+        if vote_strength_bull >= conf_thresh
+            out_bias := 1
+            out_conf := vote_strength_bull
+        else if vote_strength_bear >= conf_thresh
+            out_bias := -1
+            out_conf := vote_strength_bear
+        else
+            out_bias := 0
+            out_conf := math.max(vote_strength_bull, vote_strength_bear)
+    [out_bias, out_conf]
+
+//=====================================================================================================================
+// 4. SMART LIQUIDITY LOGIC
+//=====================================================================================================================
+
+var slz_Point slz_last_sh = slz_Point.new(0, 0.0)
+var slz_Point slz_last_sl = slz_Point.new(0, 0.0)
+var float slz_sl_at_sh = 0.0
+var float slz_sh_at_sl = 0.0
+var float slz_l_since_sh = 999999.0
+var int slz_l_since_sh_x = 0
+var float slz_h_since_sl = 0.0
+var int slz_h_since_sl_x = 0
+
+slz_ph = ta.pivothigh(high, slz_length, slz_length)
+slz_pl = ta.pivotlow(low, slz_length, slz_length)
+
+if not na(slz_ph)
+    slz_last_sh := slz_Point.new(bar_index - slz_length, slz_ph)
+    slz_sl_at_sh := slz_last_sl.y
+    slz_l_since_sh := low
+    slz_l_since_sh_x := bar_index
+    for i = 0 to slz_length
+        if low[i] < slz_l_since_sh
+            slz_l_since_sh := low[i]
+            slz_l_since_sh_x := bar_index - i
+else if low < slz_l_since_sh
+    slz_l_since_sh := low
+    slz_l_since_sh_x := bar_index
+
+if not na(slz_pl)
+    slz_last_sl := slz_Point.new(bar_index - slz_length, slz_pl)
+    slz_sh_at_sl := slz_last_sh.y
+    slz_h_since_sl := high
+    slz_h_since_sl_x := bar_index
+    for i = 0 to slz_length
+        if high[i] > slz_h_since_sl
+            slz_h_since_sl := high[i]
+            slz_h_since_sl_x := bar_index - i
+else if high > slz_h_since_sl
+    slz_h_since_sl := high
+    slz_h_since_sl_x := bar_index
+
+var int slz_trend_state = 0
+var bool slz_waiting_bull_p3 = false
+var int slz_last_broken_sh_x = 0
+var int slz_bull_break_x = 0
+var slz_Point slz_bull_p1 = na
+var slz_Point slz_bull_p2 = na
+var bool slz_waiting_bear_p3 = false
+var int slz_last_broken_sl_x = 0
+var int slz_bear_break_x = 0
+var slz_Point slz_bear_p1 = na
+var slz_Point slz_bear_p2 = na
+var line[] slz_active_bull_lines = array.new_line()
+var line[] slz_active_bear_lines = array.new_line()
+
+slz_bull_break = slz_useClose ? close > slz_last_sh.y : high > slz_last_sh.y
+slz_bear_break = slz_useClose ? close < slz_last_sl.y : low < slz_last_sl.y
+
+bool slz_valid_bull_trend = not slz_reduceOverlap or slz_trend_state <= 0
+bool slz_valid_bear_trend = not slz_reduceOverlap or slz_trend_state >= 0
+bool slz_swept_low = not slz_requireSweep or (slz_l_since_sh < slz_sl_at_sh)
+bool slz_swept_high = not slz_requireSweep or (slz_h_since_sl > slz_sh_at_sl)
+
+if not slz_waiting_bull_p3 and slz_last_sh.y > 0 and slz_bull_break and slz_last_sh.x > slz_last_broken_sh_x and slz_valid_bull_trend and slz_swept_low
+    slz_last_broken_sh_x := slz_last_sh.x
+    slz_bull_break_x := bar_index
+    slz_waiting_bull_p3 := true
+    slz_bull_p1 := slz_Point.new(slz_last_sh.x, slz_last_sh.y)
+    slz_bull_p2 := slz_Point.new(slz_l_since_sh_x, slz_l_since_sh)
+    slz_trend_state := 1
+    if slz_reduceOverlap
+        slz_waiting_bear_p3 := false
+
+if slz_waiting_bull_p3 and not na(slz_ph) and (bar_index - slz_length) >= slz_bull_break_x
+    if show_slz
+        l = line.new(slz_bull_p2.x, slz_bull_p2.y, bar_index, slz_bull_p2.y, color=slz_bullColor, style=line.style_solid)
+        array.push(slz_active_bull_lines, l)
+    slz_waiting_bull_p3 := false
+
+if not slz_waiting_bear_p3 and slz_last_sl.y > 0 and slz_bear_break and slz_last_sl.x > slz_last_broken_sl_x and slz_valid_bear_trend and slz_swept_high
+    slz_last_broken_sl_x := slz_last_sl.x
+    slz_bear_break_x := bar_index
+    slz_waiting_bear_p3 := true
+    slz_bear_p1 := slz_Point.new(slz_last_sl.x, slz_last_sl.y)
+    slz_bear_p2 := slz_Point.new(slz_h_since_sl_x, slz_h_since_sl)
+    slz_trend_state := -1
+    if slz_reduceOverlap
+        slz_waiting_bull_p3 := false
+
+if slz_waiting_bear_p3 and not na(slz_pl) and (bar_index - slz_length) >= slz_bear_break_x
+    if show_slz
+        l = line.new(slz_bear_p2.x, slz_bear_p2.y, bar_index, slz_bear_p2.y, color=slz_bearColor, style=line.style_solid)
+        array.push(slz_active_bear_lines, l)
+    slz_waiting_bear_p3 := false
+
+if array.size(slz_active_bull_lines) > 0
+    for i = array.size(slz_active_bull_lines) - 1 to 0
+        l = array.get(slz_active_bull_lines, i)
+        if not na(l)
+            line.set_x2(l, bar_index)
+            if low <= line.get_y1(l) and bar_index > line.get_x1(l)
+                array.remove(slz_active_bull_lines, i)
+
+if array.size(slz_active_bear_lines) > 0
+    for i = array.size(slz_active_bear_lines) - 1 to 0
+        l = array.get(slz_active_bear_lines, i)
+        if not na(l)
+            line.set_x2(l, bar_index)
+            if high >= line.get_y1(l) and bar_index > line.get_x1(l)
+                array.remove(slz_active_bear_lines, i)
+
+//=====================================================================================================================
+// 5. ICT HP PRO LOGIC
+//=====================================================================================================================
+
+var int pro_k = 5
+var int pro_lookahead = 3
+var int pro_conf = 70
+var int pro_win = 1000
+if ai_mode == "Conservative"
+    pro_k := 10
+    pro_lookahead := 5
+    pro_conf := 80
+else if ai_mode == "Aggressive"
+    pro_k := 3
+    pro_lookahead := 1
+    pro_conf := 51
+else
+    pro_k := 5
+    pro_lookahead := 3
+    pro_conf := 70
+
+[h4_high, h4_low] = request.security(syminfo.tickerid, "240", [high[1], low[1]], lookahead=barmerge.lookahead_on)
+equilibrium = (h4_high + h4_low) / 2
+
+var line hi_l = na
+var line lo_l = na
+var line eq_l = na
+var label hi_lbl = na
+var label lo_lbl = na
+var label eq_lbl = na
+
+if show_active_sw and barstate.islast
+    if not na(hi_l)
+        line.delete(hi_l)
+    if not na(lo_l)
+        line.delete(lo_l)
+    if not na(eq_l)
+        line.delete(eq_l)
+    if not na(hi_lbl)
+        label.delete(hi_lbl)
+    if not na(lo_lbl)
+        label.delete(lo_lbl)
+    if not na(eq_lbl)
+        label.delete(eq_lbl)
+
+    hi_l := line.new(bar_index - 100, h4_high, bar_index + 10, h4_high, color=c_h4_hi, style=line.style_dashed)
+    lo_l := line.new(bar_index - 100, h4_low, bar_index + 10, h4_low, color=c_h4_lo, style=line.style_dashed)
+    eq_l := line.new(bar_index - 100, equilibrium, bar_index + 10, equilibrium, color=c_h4_eq, width=1)
+    hi_lbl := label.new(bar_index + 10, h4_high, "4H High", color=color.new(color.white, 100), textcolor=c_h4_hi, style=label.style_label_left, size=lvl_sz)
+    lo_lbl := label.new(bar_index + 10, h4_low, "4H Low", color=color.new(color.white, 100), textcolor=c_h4_lo, style=label.style_label_left, size=lvl_sz)
+    eq_lbl := label.new(bar_index + 10, equilibrium, "4H 50%", color=color.new(color.white, 100), textcolor=c_h4_eq, style=label.style_label_left, size=lvl_sz)
+
+var float last_ph = high
+var float last_pl = low
+var int last_ph_idx = bar_index
+var int last_pl_idx = bar_index
+ph = ta.pivothigh(high, mss_len, mss_len)
+pl = ta.pivotlow(low, mss_len, mss_len)
+if not na(ph)
+    last_ph := ph
+    last_ph_idx := bar_index[mss_len]
+if not na(pl)
+    last_pl := pl
+    last_pl_idx := bar_index[mss_len]
+
+t_ny_am = time(timeframe.period, pro_sess_am, "America/New_York")
+t_ny_pm = time(timeframe.period, pro_sess_pm, "America/New_York")
+is_killzone = pro_use_time ? (not na(t_ny_am) or not na(t_ny_pm)) : true
+
+[pdh, pdl] = request.security(syminfo.tickerid, "D", [high[1], low[1]], lookahead=barmerge.lookahead_on)
+[pwh, pwl] = request.security(syminfo.tickerid, "W", [high[1], low[1]], lookahead=barmerge.lookahead_on)
+[pmh, pml] = request.security(syminfo.tickerid, "M", [high[1], low[1]], lookahead=barmerge.lookahead_on)
+[pyh, pyl] = request.security(syminfo.tickerid, "12M", [high[1], low[1]], lookahead=barmerge.lookahead_on)
+
+d_open = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
+w_open = request.security(syminfo.tickerid, "W", open, lookahead=barmerge.lookahead_on)
+m_open = request.security(syminfo.tickerid, "M", open, lookahead=barmerge.lookahead_on)
+y_open = request.security(syminfo.tickerid, "12M", open, lookahead=barmerge.lookahead_on)
+
+var float midnight_open = na
+ny_day = dayofmonth(time, "America/New_York")
+if ny_day != ny_day[1] or barstate.isfirst
+    midnight_open := open
+
+var int last_bull_sweep = 0
+var int last_bear_sweep = 0
+if low < pdl or low < pwl
+    last_bull_sweep := bar_index
+if high > pdh or high > pwh
+    last_bear_sweep := bar_index
+
+atr = ta.atr(14)
+float candle_range = high - low
+float candle_body = math.abs(close - open)
+bool body_valid = candle_range > 0 ? (candle_body / candle_range) >= body_ratio_min : false
+bool atr_valid = candle_body > (atr * displace_mult)
+bool has_disp = use_displace ? (body_valid and atr_valid) : true
+
+var box_info[] fvg_data = array.new<box_info>()
+int MAX_FVGS = 50
+if array.size(fvg_data) > MAX_FVGS
+    f_del = array.shift(fvg_data)
+    if not na(f_del.bx)
+        box.delete(f_del.bx)
+    if not na(f_del.ce_ln)
+        line.delete(f_del.ce_ln)
+
+bool is_bull_allowed = fvg_filter == "Both" or fvg_filter == "Bullish Only"
+bool is_bear_allowed = fvg_filter == "Both" or fvg_filter == "Bearish Only"
+bool fvg_bull_cond = is_bull_allowed and low > high[2] and high[2] < equilibrium and (bar_index - last_bull_sweep <= 60)
+bool fvg_bear_cond = is_bear_allowed and high < low[2] and low[2] > equilibrium and (bar_index - last_bear_sweep <= 60)
+
+if fvg_bull_cond
+    col_bg = show_fvgs ? c_fvg_bull : color.new(c_fvg_bull, 100)
+    col_bd = show_fvgs ? c_fvg_bull : color.new(c_fvg_bull, 100)
+    nb = box.new(bar_index[2], low, bar_index, high[2], border_color=col_bd, bgcolor=col_bg, text=show_fvgs ? "FVG" : "", text_size=fvg_sz, text_color=col_bd, text_halign=fvg_halign, text_valign=fvg_valign)
+    nl = show_ce and show_fvgs ? line.new(bar_index[2], (low + high[2]) / 2, bar_index, (low + high[2]) / 2, color=color.new(c_fvg_bull, 40), style=line.style_dotted) : na
+    array.push(fvg_data, box_info.new(nb, nl, false, true))
+
+if fvg_bear_cond
+    col_bg = show_fvgs ? c_fvg_bear : color.new(c_fvg_bear, 100)
+    col_bd = show_fvgs ? c_fvg_bear : color.new(c_fvg_bear, 100)
+    nb = box.new(bar_index[2], high, bar_index, low[2], border_color=col_bd, bgcolor=col_bg, text=show_fvgs ? "FVG" : "", text_size=fvg_sz, text_color=col_bd, text_halign=fvg_halign, text_valign=fvg_valign)
+    nl = show_ce and show_fvgs ? line.new(bar_index[2], (high + low[2]) / 2, bar_index, (high + low[2]) / 2, color=color.new(c_fvg_bear, 40), style=line.style_dotted) : na
+    array.push(fvg_data, box_info.new(nb, nl, false, false))
+
+bool sweep_context_bear = bar_index - last_bear_sweep <= 60
+bool sweep_context_bull = bar_index - last_bull_sweep <= 60
+
+if array.size(fvg_data) > 0
+    for i = array.size(fvg_data) - 1 to 0
+        item = array.get(fvg_data, i)
+        float b_top = box.get_top(item.bx)
+        float b_bot = box.get_bottom(item.bx)
+        if item.is_bull_orig
+            if not item.is_ifvg
+                if close < b_bot
+                    if has_disp and sweep_context_bear
+                        item.is_ifvg := true
+                        if is_bear_allowed
+                            update_visuals(item.bx, item.ce_ln, true, c_ifvg_bear, c_ifvg_bear, "IFVG")
+                        else
+                            if not na(item.bx)
+                                box.delete(item.bx)
+                            if not na(item.ce_ln)
+                                line.delete(item.ce_ln)
+                            array.remove(fvg_data, i)
+                    else
+                        if not na(item.bx)
+                            box.delete(item.bx)
+                        if not na(item.ce_ln)
+                            line.delete(item.ce_ln)
+                        array.remove(fvg_data, i)
+            else if close > b_top
+                if not na(item.bx)
+                    box.delete(item.bx)
+                if not na(item.ce_ln)
+                    line.delete(item.ce_ln)
+                array.remove(fvg_data, i)
+        else
+            if not item.is_ifvg
+                if close > b_top
+                    if has_disp and sweep_context_bull
+                        item.is_ifvg := true
+                        if is_bull_allowed
+                            update_visuals(item.bx, item.ce_ln, true, c_ifvg_bull, c_ifvg_bull, "IFVG")
+                        else
+                            if not na(item.bx)
+                                box.delete(item.bx)
+                            if not na(item.ce_ln)
+                                line.delete(item.ce_ln)
+                            array.remove(fvg_data, i)
+                    else
+                        if not na(item.bx)
+                            box.delete(item.bx)
+                        if not na(item.ce_ln)
+                            line.delete(item.ce_ln)
+                        array.remove(fvg_data, i)
+            else if close < b_bot
+                if not na(item.bx)
+                    box.delete(item.bx)
+                if not na(item.ce_ln)
+                    line.delete(item.ce_ln)
+                array.remove(fvg_data, i)
+        if i < array.size(fvg_data)
+            box.set_right(item.bx, bar_index + 2)
+            if not na(item.ce_ln)
+                line.set_x2(item.ce_ln, bar_index + 2)
+
+[fvg_top, fvg_bot, is_bull_fvg] = request.security(syminfo.tickerid, htf_tf, [
+    (low > high[2]) ? low : (high < low[2]) ? high : na,
+    (low > high[2]) ? high[2] : (high < low[2]) ? low[2] : na,
+    (low > high[2]) ? true : false
+], lookahead=barmerge.lookahead_on)
+
+bool new_htf_fvg = (fvg_top != fvg_top[1]) or (fvg_bot != fvg_bot[1])
+var htf_box_info[] htf_data = array.new<htf_box_info>()
+
+if array.size(htf_data) > MAX_FVGS
+    h_del = array.shift(htf_data)
+    if not na(h_del.bx)
+        box.delete(h_del.bx)
+    if not na(h_del.ce_ln)
+        line.delete(h_del.ce_ln)
+
+bool generate_htf = show_htf_main or use_htf_poi_filter
+if generate_htf and new_htf_fvg and not na(fvg_top)
+    color c_bg = is_bull_fvg ? c_htf_bull : c_htf_bear
+    color act_bg = show_htf_main ? c_bg : color.new(c_bg, 100)
+    color act_bd = show_htf_main ? c_bg : color.new(c_bg, 100)
+    color act_txt = show_htf_main ? color.new(color.white, 20) : color.new(color.white, 100)
+    string htf_txt = show_htf_main ? ("HTF [" + htf_tf + "]") : ""
+    new_bx = box.new(bar_index - 10, fvg_top, bar_index, fvg_bot, border_color=act_bd, bgcolor=act_bg, text=htf_txt, text_size=fvg_sz, text_color=act_txt, text_halign=fvg_halign, text_valign=fvg_valign)
+    float ce_val = (fvg_top + fvg_bot) / 2
+    color act_ce = (show_htf_main and show_htf_ce) ? color.new(c_bg, 40) : color.new(c_bg, 100)
+    new_ce = line.new(bar_index - 10, ce_val, bar_index, ce_val, color=act_ce, style=line.style_dotted)
+    array.push(htf_data, htf_box_info.new(new_bx, new_ce, false, is_bull_fvg, fvg_top, fvg_bot))
+
+var int htf_poi_bias = 0
+if generate_htf and array.size(htf_data) > 0
+    bool tap_bull = false
+    bool tap_bear = false
+    for i = array.size(htf_data) - 1 to 0
+        h_item = array.get(htf_data, i)
+        box.set_right(h_item.bx, bar_index + 5)
+        if not na(h_item.ce_ln)
+            line.set_x2(h_item.ce_ln, bar_index + 5)
+        bool is_tapped = low <= h_item.top and high >= h_item.bot
+        if is_tapped
+            bool is_bull_poi = (h_item.is_bull_orig and not h_item.is_ifvg) or (not h_item.is_bull_orig and h_item.is_ifvg)
+            bool is_bear_poi = (not h_item.is_bull_orig and not h_item.is_ifvg) or (h_item.is_bull_orig and h_item.is_ifvg)
+            if is_bull_poi
+                tap_bull := true
+            if is_bear_poi
+                tap_bear := true
+        if h_item.is_bull_orig
+            if not h_item.is_ifvg
+                if close < h_item.bot
+                    h_item.is_ifvg := true
+                    color act_bg = show_htf_main ? c_htf_ibear : color.new(c_htf_ibear, 100)
+                    box.set_bgcolor(h_item.bx, act_bg)
+                    box.set_border_color(h_item.bx, act_bg)
+                    box.set_text(h_item.bx, show_htf_main ? ("IFVG [" + htf_tf + "]") : "")
+                    if not na(h_item.ce_ln)
+                        line.set_color(h_item.ce_ln, (show_htf_main and show_htf_ce) ? color.new(c_htf_ibear, 40) : color.new(c_htf_ibear, 100))
+            else if close > h_item.top
+                if not na(h_item.bx)
+                    box.delete(h_item.bx)
+                if not na(h_item.ce_ln)
+                    line.delete(h_item.ce_ln)
+                array.remove(htf_data, i)
+        else
+            if not h_item.is_ifvg
+                if close > h_item.top
+                    h_item.is_ifvg := true
+                    color act_bg = show_htf_main ? c_htf_ibull : color.new(c_htf_ibull, 100)
+                    box.set_bgcolor(h_item.bx, act_bg)
+                    box.set_border_color(h_item.bx, act_bg)
+                    box.set_text(h_item.bx, show_htf_main ? ("IFVG [" + htf_tf + "]") : "")
+                    if not na(h_item.ce_ln)
+                        line.set_color(h_item.ce_ln, (show_htf_main and show_htf_ce) ? color.new(c_htf_ibull, 40) : color.new(c_htf_ibull, 100))
+            else if close < h_item.bot
+                if not na(h_item.bx)
+                    box.delete(h_item.bx)
+                if not na(h_item.ce_ln)
+                    line.delete(h_item.ce_ln)
+                array.remove(htf_data, i)
+    if tap_bull and not tap_bear
+        htf_poi_bias := 1
+    else if tap_bear and not tap_bull
+        htf_poi_bias := -1
+
+ema200 = ta.ema(close, 200)
+plot(show_ema200 ? ema200 : na, title="200 EMA", color=c_ema200, linewidth=2)
+
+bool filter_bull = use_ema_filter ? close > ema200 : true
+bool filter_bear = use_ema_filter ? close < ema200 : true
+
+var int ai_bias = 0
+var float ai_conf = 0.0
+[temp_b, temp_c] = predict_market_pivot(pro_k, pro_win, pro_lookahead, pro_conf, barstate.isconfirmed and use_ai_hunter)
+if barstate.isconfirmed
+    if use_ai_hunter
+        ai_bias := temp_b
+        ai_conf := temp_c
+    else
+        ai_bias := 0
+        ai_conf := 0.0
+
+bool htf_bull_allowed = use_htf_poi_filter ? (htf_poi_bias == 1 or htf_poi_bias == 0) : true
+bool htf_bear_allowed = use_htf_poi_filter ? (htf_poi_bias == -1 or htf_poi_bias == 0) : true
+bool buy_valid = (use_ai_hunter ? ai_bias == 1 : true) and filter_bull and htf_bull_allowed
+bool sell_valid = (use_ai_hunter ? ai_bias == -1 : true) and filter_bear and htf_bear_allowed
+bool x_over = ta.crossover(close, last_ph)
+bool x_under = ta.crossunder(close, last_pl)
+buy_sig = is_killzone and x_over and has_disp and buy_valid
+sell_sig = is_killzone and x_under and has_disp and sell_valid
+
+var line[] tp_lines = array.new_line()
+var label[] tp_labels = array.new_label()
+if show_tps and (buy_sig or sell_sig)
+    if array.size(tp_lines) > 0
+        for i = 0 to array.size(tp_lines) - 1
+            line.delete(array.get(tp_lines, i))
+    if array.size(tp_labels) > 0
+        for i = 0 to array.size(tp_labels) - 1
+            label.delete(array.get(tp_labels, i))
+    array.clear(tp_lines)
+    array.clear(tp_labels)
+    float leg_range = math.abs(last_ph - last_pl)
+    int ext_len = 30
+    if buy_sig
+        float t1 = last_ph + leg_range * tp1_mult
+        float t2 = last_ph + leg_range * tp2_mult
+        float t3 = last_ph + leg_range * tp3_mult
+        array.push(tp_lines, line.new(bar_index, t1, bar_index + ext_len, t1, color=color.new(color.lime, 40), style=line.style_dashed))
+        array.push(tp_lines, line.new(bar_index, t2, bar_index + ext_len, t2, color=color.new(color.lime, 40), style=line.style_dashed))
+        array.push(tp_lines, line.new(bar_index, t3, bar_index + ext_len, t3, color=color.new(color.lime, 40), style=line.style_dashed))
+        array.push(tp_labels, label.new(bar_index + ext_len, t1, "TP 1 (" + str.tostring(tp1_mult) + "x)", textcolor=color.lime, style=label.style_none, size=size.small))
+        array.push(tp_labels, label.new(bar_index + ext_len, t2, "TP 2 (" + str.tostring(tp2_mult) + "x)", textcolor=color.lime, style=label.style_none, size=size.small))
+        array.push(tp_labels, label.new(bar_index + ext_len, t3, "TP 3 (" + str.tostring(tp3_mult) + "x)", textcolor=color.lime, style=label.style_none, size=size.small))
+    if sell_sig
+        float t1 = last_pl - leg_range * tp1_mult
+        float t2 = last_pl - leg_range * tp2_mult
+        float t3 = last_pl - leg_range * tp3_mult
+        array.push(tp_lines, line.new(bar_index, t1, bar_index + ext_len, t1, color=color.new(color.red, 40), style=line.style_dashed))
+        array.push(tp_lines, line.new(bar_index, t2, bar_index + ext_len, t2, color=color.new(color.red, 40), style=line.style_dashed))
+        array.push(tp_lines, line.new(bar_index, t3, bar_index + ext_len, t3, color=color.new(color.red, 40), style=line.style_dashed))
+        array.push(tp_labels, label.new(bar_index + ext_len, t1, "TP 1 (" + str.tostring(tp1_mult) + "x)", textcolor=color.red, style=label.style_none, size=size.small))
+        array.push(tp_labels, label.new(bar_index + ext_len, t2, "TP 2 (" + str.tostring(tp2_mult) + "x)", textcolor=color.red, style=label.style_none, size=size.small))
+        array.push(tp_labels, label.new(bar_index + ext_len, t3, "TP 3 (" + str.tostring(tp3_mult) + "x)", textcolor=color.red, style=label.style_none, size=size.small))
+
+//=====================================================================================================================
+// 6. SMART LEVELS
+//=====================================================================================================================
+
+var line[] htf_lines = array.new_line()
+var label[] htf_labels = array.new_label()
+var lvl_data[] lvls = array.new<lvl_data>()
+
+if barstate.islast
+    if array.size(htf_lines) > 0
+        for i = 0 to array.size(htf_lines) - 1
+            line.delete(array.get(htf_lines, i))
+    if array.size(htf_labels) > 0
+        for i = 0 to array.size(htf_labels) - 1
+            label.delete(array.get(htf_labels, i))
+    array.clear(htf_lines)
+    array.clear(htf_labels)
+    array.clear(lvls)
+
+    if show_pd
+        array.push(lvls, lvl_data.new(pdh, "PDH", "Prev Day High", c_pd, false))
+        array.push(lvls, lvl_data.new(pdl, "PDL", "Prev Day Low", c_pd, false))
+    if show_pd_eq
+        array.push(lvls, lvl_data.new((pdh + pdl) / 2, "PD-50%", "Daily Equilibrium", c_pd, true))
+
+    if show_pw
+        array.push(lvls, lvl_data.new(pwh, "PWH", "Prev Week High", c_pw, false))
+        array.push(lvls, lvl_data.new(pwl, "PWL", "Prev Week Low", c_pw, false))
+    if show_pw_eq
+        array.push(lvls, lvl_data.new((pwh + pwl) / 2, "PW-50%", "Weekly Equilibrium", c_pw, true))
+
+    if show_pm
+        array.push(lvls, lvl_data.new(pmh, "PMH", "Prev Month High", c_pm, false))
+        array.push(lvls, lvl_data.new(pml, "PML", "Prev Month Low", c_pm, false))
+    if show_pm_eq
+        array.push(lvls, lvl_data.new((pmh + pml) / 2, "PM-50%", "Monthly Equilibrium", c_pm, true))
+
+    if show_py
+        array.push(lvls, lvl_data.new(pyh, "PYH", "Prev Year High", c_py, false))
+        array.push(lvls, lvl_data.new(pyl, "PYL", "Prev Year Low", c_py, false))
+    if show_py_eq
+        array.push(lvls, lvl_data.new((pyh + pyl) / 2, "PY-50%", "Yearly Equilibrium", c_py, true))
+
+    if show_opens
+        array.push(lvls, lvl_data.new(d_open, "D-Open", "Daily Open", c_open, false))
+        array.push(lvls, lvl_data.new(w_open, "W-Open", "Weekly Open", c_open, false))
+        array.push(lvls, lvl_data.new(m_open, "M-Open", "Monthly Open", c_open, false))
+        array.push(lvls, lvl_data.new(y_open, "Y-Open", "Yearly Open", c_open, false))
+
+    if show_midnight and not na(midnight_open)
+        array.push(lvls, lvl_data.new(midnight_open, "NY-Mid", "NY Midnight Open", c_midnight, false))
+
+    if array.size(lvls) > 1
+        for i = 0 to array.size(lvls) - 2
+            for j = 0 to array.size(lvls) - 2 - i
+                if array.get(lvls, j).p < array.get(lvls, j + 1).p
+                    val_j = array.get(lvls, j)
+                    val_next = array.get(lvls, j+1)
+                    array.set(lvls, j, val_next)
+                    array.set(lvls, j+1, val_j)
+
+    float merge_thresh = close * 0.0005 
+
+    if array.size(lvls) > 0
+        int i = 0
+        while i < array.size(lvls)
+            item_lead = array.get(lvls, i)
+            string cluster_txt = get_lvl_txt(item_lead.t_s, item_lead.t_l)
+            
+            col_l = global_col_on ? global_col : item_lead.c
+            ln = line.new(bar_index - distanceleft, item_lead.p, bar_index + distanceright, item_lead.p, color=col_l, style=item_lead.eq ? line.style_dotted : line.style_solid)
+            array.push(htf_lines, ln)
+
+            int next_idx = i + 1
+            while next_idx < array.size(lvls)
+                item_next = array.get(lvls, next_idx)
+                if math.abs(item_next.p - item_lead.p) <= merge_thresh
+                    cluster_txt := cluster_txt + " / " + get_lvl_txt(item_next.t_s, item_next.t_l)
+                    col_n = global_col_on ? global_col : item_next.c
+                    ln_n = line.new(bar_index - distanceleft, item_next.p, bar_index + distanceright, item_next.p, color=col_n, style=item_next.eq ? line.style_dotted : line.style_solid)
+                    array.push(htf_lines, ln_n)
+                    next_idx += 1
+                else
+                    break
+            
+            col_lbl = global_col_on ? global_col : item_lead.c
+            lb = label.new(bar_index + distanceright, item_lead.p, cluster_txt, style=label.style_none, size=lvl_sz, textcolor=col_lbl)
+            array.push(htf_labels, lb)
+            i := next_idx
+
+//=====================================================================================================================
+// 7. ALERTS & VISUALS
+//=====================================================================================================================
+
+if show_struct_line
+    if x_over
+        line.new(last_ph_idx, last_ph, bar_index, last_ph, color=color.new(c_bull_struct, 50), style=line.style_dashed)
+    if x_under
+        line.new(last_pl_idx, last_pl, bar_index, last_pl, color=color.new(c_bear_struct, 50), style=line.style_dashed)
+
+plotshape(buy_sig, "Pro Long", shape.circle, location.belowbar, color.green, size=size.small)
+plotshape(sell_sig, "Pro Short", shape.circle, location.abovebar, color.red, size=size.small)
+
+alertcondition(buy_sig, title = "AI Hunter Buy Signal", message = "ICT HP PRO: AI Hunter Buy Signal Detected")
+alertcondition(sell_sig, title = "AI Hunter Sell Signal", message = "ICT HP PRO: AI Hunter Sell Signal Detected")
+
+// --- SMART LEVEL ALERTS & PROXIMITY SCANNER ---
+var map<string, int> alert_history = map.new<string, int>()
+
+f_check_level(lvl, lvl_name, is_active) =>
+    if is_active and not na(lvl)
+        string break_key = lvl_name + "_break"
+        string prox_key  = lvl_name + "_prox"
+        
+        int last_break_bar = alert_history.contains(break_key) ? alert_history.get(break_key) : -999
+        int last_prox_bar  = alert_history.contains(prox_key) ? alert_history.get(prox_key) : -999
+        
+        bool can_break_alert = (bar_index - last_break_bar) >= alert_cooldown
+        bool can_prox_alert  = (bar_index - last_prox_bar) >= alert_cooldown
+
+        // 1. Breakout Alerts
+        bool cross_up = ta.crossover(close, lvl)
+        bool cross_dn = ta.crossunder(close, lvl)
+        
+        if (cross_up or cross_dn) and can_break_alert
+            if cross_up
+                alert("Bullish Break: " + syminfo.ticker + " crossed ABOVE " + lvl_name + " at " + str.tostring(lvl, format.mintick), alert.freq_once_per_bar_close)
+            if cross_dn
+                alert("Bearish Break: " + syminfo.ticker + " crossed BELOW " + lvl_name + " at " + str.tostring(lvl, format.mintick), alert.freq_once_per_bar_close)
+            alert_history.put(break_key, bar_index)
+            
+        // 2. Proximity Alerts
+        if use_proximity
+            float tick_buffer = prox_ticks * syminfo.mintick
+            float upper_zone = lvl + tick_buffer
+            float lower_zone = lvl - tick_buffer
+            
+            bool prox_up = ta.crossover(high, lower_zone) and high < lvl
+            bool prox_dn = ta.crossunder(low, upper_zone) and low > lvl
+            
+            // Price sweeping into the proximity zone
+            if (prox_up or prox_dn) and can_prox_alert
+                if prox_up
+                    alert("Proximity Warning: " + syminfo.ticker + " approaching " + lvl_name + " from below. Level: " + str.tostring(lvl, format.mintick), alert.freq_once_per_bar)
+                if prox_dn
+                    alert("Proximity Warning: " + syminfo.ticker + " approaching " + lvl_name + " from above. Level: " + str.tostring(lvl, format.mintick), alert.freq_once_per_bar)
+                alert_history.put(prox_key, bar_index)
+
+// Daily Levels
+if alert_pd
+    f_check_level(pdh, "PDH", show_pd)
+    f_check_level(pdl, "PDL", show_pd)
+    f_check_level((pdh+pdl)/2, "Daily 50% (EQ)", show_pd_eq)
+
+// Weekly Levels
+if alert_pw
+    f_check_level(pwh, "PWH", show_pw)
+    f_check_level(pwl, "PWL", show_pw)
+    f_check_level((pwh+pwl)/2, "Weekly 50% (EQ)", show_pw_eq)
+
+// Monthly Levels
+if alert_pm
+    f_check_level(pmh, "PMH", show_pm)
+    f_check_level(pml, "PML", show_pm)
+    f_check_level((pmh+pml)/2, "Monthly 50% (EQ)", show_pm_eq)
+
+// Yearly Levels
+if alert_py
+    f_check_level(pyh, "PYH", show_py)
+    f_check_level(pyl, "PYL", show_py)
+    f_check_level((pyh+pyl)/2, "Yearly 50% (EQ)", show_py_eq)
+
+// Open Levels
+if alert_opens
+    f_check_level(d_open, "Daily Open", show_opens)
+    f_check_level(w_open, "Weekly Open", show_opens)
+    f_check_level(m_open, "Monthly Open", show_opens)
+    f_check_level(y_open, "Yearly Open", show_opens)
+    f_check_level(midnight_open, "NY Midnight Open", show_midnight)
+
+//=====================================================================================================================
+// 8. KILLZONE BOXES ENGINE
+//=====================================================================================================================
+
+bool is_new_lon = not na(time(timeframe.period, kz_lon_sess, "America/New_York")) and na(time(timeframe.period, kz_lon_sess, "America/New_York")[1])
+bool is_in_lon  = not na(time(timeframe.period, kz_lon_sess, "America/New_York"))
+
+bool is_new_am = not na(time(timeframe.period, kz_am_sess, "America/New_York")) and na(time(timeframe.period, kz_am_sess, "America/New_York")[1])
+bool is_in_am  = not na(time(timeframe.period, kz_am_sess, "America/New_York"))
+
+bool is_new_pm = not na(time(timeframe.period, kz_pm_sess, "America/New_York")) and na(time(timeframe.period, kz_pm_sess, "America/New_York")[1])
+bool is_in_pm  = not na(time(timeframe.period, kz_pm_sess, "America/New_York"))
+
+var box b_lon = na, var float lon_h = na, var float lon_l = na
+var box b_am  = na, var float am_h  = na, var float am_l  = na
+var box b_pm  = na, var float pm_h  = na, var float pm_l  = na
+
+if show_kz_boxes
+    // London
+    if is_new_lon
+        lon_h := high
+        lon_l := low
+        b_lon := box.new(bar_index, lon_h, bar_index, lon_l, bgcolor=color.new(c_kz_lon, 90), border_color=color.new(c_kz_lon, 50), text=show_kz_text ? "London" : "", text_color=c_kz_lon, text_halign=text.align_center, text_valign=text.align_bottom, text_size=size.small)
+    else if is_in_lon
+        lon_h := math.max(lon_h, high)
+        lon_l := math.min(lon_l, low)
+        if not na(b_lon)
+            box.set_top(b_lon, lon_h)
+            box.set_bottom(b_lon, lon_l)
+            box.set_right(b_lon, bar_index)
+
+    // NY AM
+    if is_new_am
+        am_h := high
+        am_l := low
+        b_am := box.new(bar_index, am_h, bar_index, am_l, bgcolor=color.new(c_kz_am, 90), border_color=color.new(c_kz_am, 50), text=show_kz_text ? "NY AM" : "", text_color=c_kz_am, text_halign=text.align_center, text_valign=text.align_bottom, text_size=size.small)
+    else if is_in_am
+        am_h := math.max(am_h, high)
+        am_l := math.min(am_l, low)
+        if not na(b_am)
+            box.set_top(b_am, am_h)
+            box.set_bottom(b_am, am_l)
+            box.set_right(b_am, bar_index)
+
+    // NY PM
+    if is_new_pm
+        pm_h := high
+        pm_l := low
+        b_pm := box.new(bar_index, pm_h, bar_index, pm_l, bgcolor=color.new(c_kz_pm, 90), border_color=color.new(c_kz_pm, 50), text=show_kz_text ? "NY PM" : "", text_color=c_kz_pm, text_halign=text.align_center, text_valign=text.align_bottom, text_size=size.small)
+    else if is_in_pm
+        pm_h := math.max(pm_h, high)
+        pm_l := math.min(pm_l, low)
+        if not na(b_pm)
+            box.set_top(b_pm, pm_h)
+            box.set_bottom(b_pm, pm_l)
+            box.set_right(b_pm, bar_index)
+
+//=====================================================================================================================
+// 9. HTF CANDLES OVERLAY
+//=====================================================================================================================
+
+bool new_htfc_bar = timeframe.change(htfc_tf) or barstate.isfirst
+
+var box htfc_body = na
+var line htfc_wick = na
+
+var float htfc_o = na
+var float htfc_h = na
+var float htfc_l = na
+
+if show_htf_candles
+    if new_htfc_bar
+        htfc_o := open
+        htfc_h := high
+        htfc_l := low
+        color initial_col = open <= close ? c_htfc_bull : c_htfc_bear
+        color border_col = htfc_border ? color.new(initial_col, math.max(0, color.t(initial_col) - 20)) : na
+        
+        htfc_body := box.new(left=bar_index, top=math.max(open, close), bottom=math.min(open, close), right=bar_index, bgcolor=initial_col, border_color=border_col)
+        htfc_wick := line.new(x1=bar_index, y1=high, x2=bar_index, y2=low, color=c_htfc_wick, width=1)
+    else
+        htfc_h := math.max(htfc_h, high)
+        htfc_l := math.min(htfc_l, low)
+        
+        color current_col = htfc_o <= close ? c_htfc_bull : c_htfc_bear
+        color border_col = htfc_border ? color.new(current_col, math.max(0, color.t(current_col) - 20)) : na
+        
+        if not na(htfc_body)
+            box.set_top(htfc_body, math.max(htfc_o, close))
+            box.set_bottom(htfc_body, math.min(htfc_o, close))
+            box.set_right(htfc_body, bar_index)
+            box.set_bgcolor(htfc_body, current_col)
+            box.set_border_color(htfc_body, border_col)
+
+        if not na(htfc_wick)
+            int center_x = math.round((box.get_left(htfc_body) + bar_index) / 2)
+            line.set_x1(htfc_wick, center_x)
+            line.set_x2(htfc_wick, center_x)
+            line.set_y1(htfc_wick, htfc_h)
+            line.set_y2(htfc_wick, htfc_l)
+
+//=====================================================================================================================
+// 10. NWOG & NDOG GAPS
+//=====================================================================================================================
+
+var box[] ndog_boxes = array.new_box()
+var box[] nwog_boxes = array.new_box()
+
+bool new_day = timeframe.change("D")
+bool new_wk  = timeframe.change("W")
+
+// Auto-extension length for the gaps
+int gap_ext = 50
+
+// NDOG Logic
+if show_ndog and new_day
+    float gap_hi = math.max(open, close[1])
+    float gap_lo = math.min(open, close[1])
+    if gap_hi > gap_lo 
+        b = box.new(bar_index, gap_hi, bar_index + gap_ext, gap_lo, border_color=color.new(c_ndog, 50), bgcolor=color.new(c_ndog, 80), text="NDOG", text_color=color.new(c_ndog, 0), text_halign=text.align_right, text_size=size.tiny)
+        array.push(ndog_boxes, b)
+        if array.size(ndog_boxes) > 2 // Keep chart clean by only storing the 2 most recent NDOGs
+            box.delete(array.shift(ndog_boxes))
+else if show_ndog
+    if array.size(ndog_boxes) > 0
+        for i = 0 to array.size(ndog_boxes) - 1
+            bx = array.get(ndog_boxes, i)
+            box.set_right(bx, bar_index + 2) // Extend dynamically with price
+
+// NWOG Logic
+if show_nwog and new_wk
+    float gap_hi = math.max(open, close[1])
+    float gap_lo = math.min(open, close[1])
+    if gap_hi > gap_lo
+        b = box.new(bar_index, gap_hi, bar_index + gap_ext, gap_lo, border_color=color.new(c_nwog, 50), bgcolor=color.new(c_nwog, 80), text="NWOG", text_color=color.new(c_nwog, 0), text_halign=text.align_right, text_size=size.tiny)
+        array.push(nwog_boxes, b)
+        if array.size(nwog_boxes) > 2 // Keep chart clean by only storing the 2 most recent NWOGs
+            box.delete(array.shift(nwog_boxes))
+else if show_nwog
+    if array.size(nwog_boxes) > 0
+        for i = 0 to array.size(nwog_boxes) - 1
+            bx = array.get(nwog_boxes, i)
+            box.set_right(bx, bar_index + 2) // Extend dynamically with price
+
+
+//=====================================================================================================================
+// 11. SMT DIVERGENCE
+//=====================================================================================================================
+
+float smt_ph = ta.pivothigh(high, smt_pivot_len, smt_pivot_len)
+float smt_pl = ta.pivotlow(low, smt_pivot_len, smt_pivot_len)
+
+float comp_high = request.security(smt_comp_sym, timeframe.period, high)
+float comp_low  = request.security(smt_comp_sym, timeframe.period, low)
+
+var float last_smt_main_ph = na
+var float last_smt_comp_ph = na
+var int   last_smt_ph_idx = na
+
+var float last_smt_main_pl = na
+var float last_smt_comp_pl = na
+var int   last_smt_pl_idx = na
+
+if not na(smt_ph)
+    float curr_comp_ph = comp_high[smt_pivot_len] 
+    if show_smt and not na(last_smt_main_ph)
+        if (smt_ph > last_smt_main_ph) and (curr_comp_ph < last_smt_comp_ph)
+            line.new(last_smt_ph_idx, last_smt_main_ph, bar_index[smt_pivot_len], smt_ph, color=col_smt_bear, width=2)
+            label.new(bar_index[smt_pivot_len], smt_ph, "SMT", style=label.style_label_down, color=color.new(color.white, 100), textcolor=col_smt_bear, size=size.tiny)
+            
+    last_smt_main_ph := smt_ph
+    last_smt_comp_ph := curr_comp_ph
+    last_smt_ph_idx := bar_index[smt_pivot_len]
+
+if not na(smt_pl)
+    float curr_comp_pl = comp_low[smt_pivot_len] 
+    if show_smt and not na(last_smt_main_pl)
+        if (smt_pl < last_smt_main_pl) and (curr_comp_pl > last_smt_comp_pl)
+            line.new(last_smt_pl_idx, last_smt_main_pl, bar_index[smt_pivot_len], smt_pl, color=col_smt_bull, width=2)
+            label.new(bar_index[smt_pivot_len], smt_pl, "SMT", style=label.style_label_up, color=color.new(color.white, 100), textcolor=col_smt_bull, size=size.tiny)
+            
+    last_smt_main_pl := smt_pl
+    last_smt_comp_pl := curr_comp_pl
+    last_smt_pl_idx := bar_index[smt_pivot_len]
+
+//=====================================================================================================================
+// 12. HUD DASHBOARD RENDERING
+//=====================================================================================================================
+
+var string t_pos = switch hud_pos
+    "Top Right"    => position.top_right
+    "Bottom Right" => position.bottom_right
+    "Bottom Left"  => position.bottom_left
+    "Top Left"     => position.top_left
+    => position.top_right
+
+var string t_size = switch hud_size
+    "Tiny"   => size.tiny
+    "Small"  => size.small
+    "Normal" => size.normal
+    "Large"  => size.large
+    => size.normal
+
+var table hud = table.new(t_pos, 2, 4, bgcolor=color.new(color.black, 80), border_color=color.new(color.gray, 80), border_width=1, frame_color=color.new(color.gray, 80), frame_width=1)
+
+if show_hud and barstate.islast
+    string ai_txt = ai_bias == 1 ? "Bullish (" + str.tostring(ai_conf, "#.##") + "%)" : ai_bias == -1 ? "Bearish (" + str.tostring(ai_conf, "#.##") + "%)" : "Neutral"
+    color ai_col = ai_bias == 1 ? color.lime : ai_bias == -1 ? color.red : color.gray
+
+    string htf_txt = htf_poi_bias == 1 ? "Bullish" : htf_poi_bias == -1 ? "Bearish" : "Neutral"
+    color htf_col = htf_poi_bias == 1 ? color.lime : htf_poi_bias == -1 ? color.red : color.gray
+    
+    string sess_txt = not na(t_ny_am) ? "AM Killzone" : not na(t_ny_pm) ? "PM Killzone" : "Out of Session"
+    color sess_col = (not na(t_ny_am) or not na(t_ny_pm)) ? color.white : color.gray
+    
+    table.cell(hud, 0, 0, "ICT HP PRO", text_color=color.white, text_size=t_size, text_halign=text.align_left, bgcolor=color.new(#089981, 70))
+    table.cell(hud, 1, 0, "Bias Control Center", text_color=color.white, text_size=t_size, text_halign=text.align_right, bgcolor=color.new(#089981, 70))
+    
+    table.cell(hud, 0, 1, "AI Hunter Bias:", text_color=color.silver, text_size=t_size, text_halign=text.align_left)
+    table.cell(hud, 1, 1, ai_txt, text_color=ai_col, text_size=t_size, text_halign=text.align_right)
+    
+    table.cell(hud, 0, 2, "HTF POI Bias:", text_color=color.silver, text_size=t_size, text_halign=text.align_left)
+    table.cell(hud, 1, 2, htf_txt, text_color=htf_col, text_size=t_size, text_halign=text.align_right)
+    
+    table.cell(hud, 0, 3, "Active Session:", text_color=color.silver, text_size=t_size, text_halign=text.align_left)
+    table.cell(hud, 1, 3, sess_txt, text_color=sess_col, text_size=t_size, text_halign=text.align_right)
