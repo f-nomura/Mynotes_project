@@ -1423,6 +1423,7 @@ pinentry-gtk なら楽かも？
 ** PDF 閲覧 ＋ Org ノート連携
 *** PDF-tools, org-noter 情報
 [[https://github.com/vedang/pdf-tools][PDF-tools README]]
+[[https://github.com/weirdNox/org-noter/blob/master/README.org][Org-noter README]]
 
 *** システム依存パッケージのインストール
 #+begin_src bash
@@ -1469,9 +1470,14 @@ sudo dnf install -y make automake autoconf gcc gcc-c++ libpng-devel zlib-devel p
 
 *** ~init.el~ を編集
 #+begin_src emacs-lisp
-;; init.el
+  ;; init.el
+  :tools
+  (pdf)
 
+  :lang
+  (org +noter)    ; 既存の org のフラグがあれば、その後ろに +noter を足す
 #+end_src
+
 ** PDF のハイライト・下線・コメント
 ** 論文ノートの自動生成・章ごとの要約
 ** 選択範囲の翻訳
