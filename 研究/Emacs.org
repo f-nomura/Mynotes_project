@@ -1421,9 +1421,56 @@ pinentry-gtk なら楽かも？
 
 * 論文を読む環境を構築する
 ** PDF 閲覧 ＋ Org ノート連携
+*** PDF-tools, org-noter 情報
+[[https://github.com/vedang/pdf-tools][PDF-tools README]]
+
 *** システム依存パッケージのインストール
 #+begin_src bash
-sudo dnf install -y make automake autoconf gcc gcc-c++ libpng-devel zlib-devel poppler-glib-devel
+sudo dnf install -y make automake autoconf gcc gcc-c++ libpng-devel zlib-devel poppler-glib-devel ImageMagick
+#+end_src
+
+- make ::
+  - ソフトウェアのビルド手順（Makefile）を実行する道具
+  - epdfinfo をコンパイルする際に使われる
+
+- automake ::
+  - Makefile を自動生成するためのツール
+  - pdf-tools のビルド設定（configure 系）の生成に関係する
+
+- autoconf ::
+  - configure スクリプトを生成するツール
+  - automake と組み合わせて使われ、環境に応じたビルド設定を作る
+
+- gcc ::
+  - C 言語のコンパイラ
+  - epdfinfo のサーバー本体（C言語部分）をコンパイルする
+
+- gcc-c++ ::
+  - C++ のコンパイラ
+  - pdf-tools が C++ 部分を含むため、g++ が必要になる
+
+- libpng-devel ::
+  - PNG 画像を扱うライブラリの開発用ヘッダとファイル
+  - PDF ページを画像にして Emacs に渡す処理で使われる
+
+- zlib-devel ::
+  - データ圧縮ライブラリの開発用ヘッダとファイル
+  - PDF の内部データ（圧縮されたストリーム）を展開するために使われる
+
+- poppler-glib-devel ::
+  - PDF 描画エンジン poppler の GLib 向け開発用ファイル
+  - pdf-tools が PDF を解析・描画する中核部分
+  - ページの描画、テキスト抽出、検索などに使われる
+
+- ImageMagick ::
+  - 画像変換ツール
+  - pdf-tools の一部機能（画像の扱い）で使われることがある
+
+
+*** ~init.el~ を編集
+#+begin_src emacs-lisp
+;; init.el
+
 #+end_src
 ** PDF のハイライト・下線・コメント
 ** 論文ノートの自動生成・章ごとの要約
