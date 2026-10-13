@@ -1,0 +1,1 @@
+{"latex": "\\bar{A}_{c}[x,y]=\\sum_{i,j,k}\\tau(s_{x}x-i)\\tau\\Big{(}s_{y}y-j\\Big{)}\\tau(d\\cdot g [x,y]-k)A_{c}[i,j,k] \\tag{5}"}

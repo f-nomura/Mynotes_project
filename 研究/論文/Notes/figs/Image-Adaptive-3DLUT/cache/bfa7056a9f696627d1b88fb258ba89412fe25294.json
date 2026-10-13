@@ -1,0 +1,1 @@
+{"latex": "where \\(g(\\cdot)\\) is defined as the standard ReLU operation, i.e., \\(g(a)=max(0,a)\\). The monotonicity regularization ensures that the output RGB values \\(c_{(i,j,k)}^{O}\\) increases with the index \\(i,j,k\\) and larger \\(i,j,k\\) indices corresponds to larger input RGB values in the 3D LUT lattice."}

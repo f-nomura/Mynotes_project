@@ -1,0 +1,1 @@
+{"latex": "S_{c}^{i}[x,y]=\\sigma\\Biggl{(}b_{c}^{i}+\\sum_{x^{\\prime},y^{\\prime},c^{\\prime}}w _{cc^{\\prime}}^{i}[x^{\\prime},y^{\\prime}]S_{c^{\\prime}}^{i-1}[sx+x^{\\prime},sy+y^ {\\prime}]\\Biggr{)} \\tag{1}"}

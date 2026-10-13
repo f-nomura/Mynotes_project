@@ -1,0 +1,1 @@
+{"latex": "\\(M\\), which is usually set to 33 in practice. Given the value of \\(M\\), the indexing RGB colors \\(\\{r^{I}_{(i,j,k)},g^{I}_{(i,j,k)},b^{I}_{(i,j,k)}\\}_{i,j,k=0,...,M-1}\\) are obtained by uniformly discretizing the RGB color."}

@@ -1,0 +1,1 @@
+{"latex": "\\mathcal{L}_{G}=\\mathbb{E}[-D(G(x))]+\\lambda_{1}\\,\\mathbb{E}[\\|G(x)-x\\|^{2}], \\tag{8}"}

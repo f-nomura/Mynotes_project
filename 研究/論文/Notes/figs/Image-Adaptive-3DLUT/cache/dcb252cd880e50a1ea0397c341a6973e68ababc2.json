@@ -1,0 +1,1 @@
+{"latex": "\\mathcal{L}_{D}=\\underset{x}{\\mathbb{E}}[D(G(x))]-\\underset{y}{\\mathbb{E}}[D(y)]+ \\lambda_{2}\\underset{\\widehat{y}}{\\mathbb{E}}[(\\|\\bigtriangledown_{\\widehat{y}}D( \\widehat{y})\\|_{2}-1)^{2}], \\tag{9}"}

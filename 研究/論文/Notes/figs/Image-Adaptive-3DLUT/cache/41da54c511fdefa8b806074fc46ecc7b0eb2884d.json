@@ -1,0 +1,1 @@
+{"latex": "\\(\\mathcal{R}_{m}=\\sum_{c\\in\\{r,g,b\\}}\\sum_{i,j,k}[g(c^{O}_{(i,j,k)}-c^{O}_{(i+1,j,k)}) +g(c^{O}_{(i,j,k)})\\)"}

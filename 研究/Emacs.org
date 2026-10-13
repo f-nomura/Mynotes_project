@@ -1467,7 +1467,6 @@ sudo dnf install -y make automake autoconf gcc gcc-c++ libpng-devel zlib-devel p
   - 画像変換ツール
   - pdf-tools の一部機能（画像の扱い）で使われることがある
 
-
 *** ~init.el~ を編集
 #+begin_src emacs-lisp
   ;; init.el
@@ -1477,12 +1476,166 @@ sudo dnf install -y make automake autoconf gcc gcc-c++ libpng-devel zlib-devel p
   :lang
   (org +noter)    ; 既存の org のフラグがあれば、その後ろに +noter を足す
 #+end_src
+*** ~config.el~ を編集
+#+begin_src emacs-lisp
+    ;;config.el
+    (after! org-noter
+      ;; ノートファイルを探すフォルダ
+      (setq org-noter-notes-search-path '("~/MyNotes/Mynotes_project/研究/論文/Notes/")
+           ;; WSLgでフレームが増えるのを避けるため、同じフレーム内に分割表示する
+           org-noter-always-create-frame nil))
 
-** PDF のハイライト・下線・コメント
-** 論文ノートの自動生成・章ごとの要約
+     ;; 読解モードを起動するキーバインド
+     (map! "C-c o n" #'org-noter)
+#+end_src
+ここまで書いたら一度 doom sync してください。
+
+*** PDF-tools をインストール、epdfinfo をビルド
+#+begin_src
+M-x pdf-tools-install
+M-x pdf-info-check-epdfinfo
+#+end_src
+
+*** ノートファイルのプロパティで関連付ける PDF を指定
+見出しの文字列は任意。
+#+begin_example
+*Properties     # 見出し
+:PROPERTIES:
+:NOTER_DOCUMENT: /home/nomura/MyNotes/Mynotes_project/研究/論文/PDFs/Image-Adaptive-3DLUT.pdf
+:END:
+#+end_example
+
+*** 操作方法をヘッダーに表示
+#+begin_src emacs-lisp
+;;config
+(defun my/set-pdf-header-guide ()
+  "PDFバッファの上部に操作ガイドを表示する"
+  (setq-local header-line-format
+              " 📄 [n/p]ページ移動 [g/G]先頭/末尾 [+/-]拡大縮小 [0]標準サイズ [C-s]検索 [o]目次"))
+
+;; PDFが開かれたときに自動でヘッダーに設定する
+(add-hook 'pdf-view-mode-hook #'my/set-pdf-header-guide)
+#+end_src
+
+
+** 章ごとの抽出、和訳、数式変換
+*** 必要ファイル
+いっぱい
+*** 見出しの抽出
+:PROPERTIES:
+:NOTER_DOCUMENT: 論文/Notes/Image-Adaptive-3DLUT.org
+:END:
+
+Emacs Lisp だけで PDF の構造は取れないため、PyMUPDF を使用します。
+
+PyMuPDF は、PDF （およびその他の）ドキュメントのデータ抽出、分析、変換、操作のための高性能な Python ライブラリです。[[https://pymupdf.readthedocs.io/ja/latest/][PyMuPDF ドキュメント]]
+
+設定が長いので別の Emacs-Lisp ファイルを作成しそれを config.el が呼ぶ形にします。
+抽出用の実行ファイル ~pdf_heading.py~ も同じところに置きます。
+
+PDF 上で ~C-c l h~ を押すと抽出できます。
+
+***** PyMuPDF のインストール
+#+begin_src bash
+# sudo dnf install python3-pip
+python3 -m pip install -y pymupdf
+#+end_src
+
+*** 英文の抽出
+***** フォントインストール
+#+begin_src bash
+sudo dnf install -y liberation-serif-fonts
+#+end_src
+
+*** 翻訳
+***** 参考
+[[https://qiita.com/tanabee/items/c79c5c28ba0537112922][3 分で作る無料の翻訳 API with Google Apps Script]]
+
+***** Apps Script 側
+- https://script.google.com で新しいプロジェクトを作り、下のコードを貼ります
+
+- 左の歯車（プロジェクトの設定）→「スクリプト プロパティ」で、TOKEN という名前で長いランダムな文字列を登録します。これが合言葉です
+
+   #+DOWNLOADED: /mnt/c/Users/light/OneDrive/Pictures/Screenshots/スクリーンショット 2026-10-10 195426.png @ 2026-10-10 19:55:49
+   [[file:figs/2026-10-10_19-55-49_スクリーンショット 2026-10-10 195426.png]]
+
+- 「デプロイ → 新しいデプロイ」→ 種類「ウェブアプリ」→ 実行ユーザー「自分」、アクセスできるユーザー「全員」でデプロイします。初回は権限の承認を求められます
+
+- 表示された ウェブアプリの URL を控えます
+#+begin_src javascript
+function doPost(e) {
+  var secret = PropertiesService.getScriptProperties().getProperty('TOKEN');
+  var req;
+  try {
+    req = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return json_({ error: 'bad json' });
+  }
+  if (!secret || req.token !== secret) {
+    return json_({ error: 'unauthorized' });
+  }
+
+  var texts = req.texts || [];
+  var out = [];
+  var error = null;
+  for (var i = 0; i < texts.length; i++) {
+    try {
+      out.push(LanguageApp.translate(texts[i], 'en', 'ja'));
+    } catch (err) {
+      error = String(err);  // 1日の上限に達した場合などもここに入る
+      break;
+    }
+  }
+  while (out.length < texts.length) out.push(null);  // 訳せなかった分は null
+  return json_({ translations: out, error: error });
+}
+
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+#+end_src
+
+***** 環境変数の登録
+#+begin_src bash
+  export GAS_TRANSLATE_URL="https://script.google.com/macros/s/AKfycbw3XxCbHM49Eksvau2l2BSc3QREz_uzpRUAXu3fJQTT7aGCkmje166VM5YAXLqboi1Z/exec"
+  export GAS_TRANSLATE_TOKEN="スクリプト プロパティに入れた合言葉"
+#+end_src
+
+*** 数式変換
+***** Nougat (Neural Optical Understanding for Academic Documents)のインストール
+Meta 社が公開した数式を含む PDF の OCR モデル、Nougat を利用して数式の Latex 変換を行います。
+
+少し古いものなので、いくつかの最新版パッケージと互換性がありません。専用の仮想環境を作成しましょう。
+Python3.12 でインストール確認済みです。
+ [[https://note.com/hamachi_jp/n/n7f5f35b38768][参考サイト]]   [[https://facebookresearch.github.io/nougat/][ドキュメント]]
+#+begin_src bash
+python3 -m venv ~/.venvs/nougat
+~/.venvs/nougat/bin/pip install nougat-ocr
+#+end_src
+いくつかのパッケージについて
+以前のバージョンを指定してインストールしてください。
+#+begin_src bash
+~/.venvs/nougat/bin/pip install "transformers<4.39.0" "albumentations<1.4.0" "pypdfium2==4.25.0"
+#+end_src
+***** Groq API を利用して数式の説明を追加
+API キーを発行し、環境変数に登録します
+#+begin_src bash
+export GROQ_API_KEY="gsk_..."
+#+end_src
+使用するモデルを登録します。
+レート制限を考慮してモデルを複数登録できます。
+無料枠で使えるモデルとレート制限については [[https://console.groq.com/docs/rate-limits][こちら]] を参照してください。
+#+begin_src bash
+export PDFNOTE_LLM_CHAIN="groq:openai/gpt-oss-120b,groq:openai/gpt-oss-20b"
+#+end_src
+
+
+** PDF のハイライト・コメント
+
+*** 必要ファイル
+いっぱい
 ** 選択範囲の翻訳
-** AI による論文読解
-** 数式の LaTeX 化 ＋ 数式プレビュー
 ** 論文の検索
 ** Zotero による文献管理
 ** 論文を横断した知識管理

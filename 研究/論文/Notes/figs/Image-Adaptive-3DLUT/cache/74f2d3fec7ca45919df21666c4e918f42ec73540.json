@@ -1,0 +1,1 @@
+{"latex": "\\begin{aligned}\n\\mathcal{R}_{TV} =\\sum_{c\\in\\{r,g,b\\}}\\sum_{i,j,k}(\\left\\|c^{O}_{(i+1,j,k)}-c^{O}_{(i,j,k)}\\right\\|^{2}+\\left\\|c^{O}_{(i,j+1,k)}\\right. \\\\\n-\\left.c^{O}_{(i,j,k)}\\right\\|^{2}+\\left\\|c^{O}_{(i,j,k+1)}-c^{O}_ {(i,j,k)}\\right\\|^{2}). \\tag{11}\n\\end{aligned}"}

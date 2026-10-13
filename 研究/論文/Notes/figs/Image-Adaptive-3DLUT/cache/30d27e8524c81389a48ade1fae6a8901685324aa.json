@@ -1,0 +1,1 @@
+{"latex": "fully-connected layer output \\(N\\) weights. The whole CNN model contains only 269K parameters when \\(N=3\\)."}
