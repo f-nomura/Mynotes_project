@@ -1,0 +1,42 @@
+#+title: Tmp
+** 再現性の確認
+#+begin_src bash
+  nvidia-smi
+#+end_src
+CUDA-Toolkit, nvcc も必要です。
+
+#+begin_example
+requires-python = "==3.12.*"
+dependencies = [
+  "imageio==2.37.2",
+  "numpy==2.2.6",
+  "psutil==7.2.2",
+  "tifffile==2026.1.14",
+  "tqdm==4.67.1",
+  "scikit-image==0.26.0",
+  "lpips==0.1.4",
+  "opencv-python==4.10.0.84",
+  "torchcodec==0.10.0",
+
+  # CUDA targets
+  "torch==2.10.0; (sys_platform == 'win32' and platform_machine == 'AMD64') or (sys_platform == 'linux' and platform_machine == 'x86_64')",
+  "torchvision==0.25.0; (sys_platform == 'win32' and platform_machine == 'AMD64') or (sys_platform == 'linux' and platform_machine == 'x86_64')",
+
+  # CPU targets
+  "torch==2.10.0; sys_platform == 'darwin' or (sys_platform == 'linux' and platform_machine == 'aarch64')",
+  "torchvision==0.25.0; sys_platform == 'darwin' or (sys_platform == 'linux' and platform_machine == 'aarch64')",
+]
+#+end_example
+
+#+begin_src bash
+  /usr/bin/python -m venv ~/venvs/adaptive-lut
+  source ~/venvs/adaptive-lut/bin/activate
+
+  python -m pip install --upgrade pip setuptools wheel
+
+    python -m pip install \
+    torch==2.6.0 \
+    torchvision==0.21.0 \
+    --index-url https://download.pytorch.org/whl/cu124
+python -m pip show torch
+#+end_src

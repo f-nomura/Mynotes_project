@@ -1618,8 +1618,18 @@ python3 -m venv ~/.venvs/nougat
 #+begin_src bash
 ~/.venvs/nougat/bin/pip install "transformers<4.39.0" "albumentations<1.4.0" "pypdfium2==4.25.0"
 #+end_src
+
+~datasets 5.1.0~ と ~huggingface-hub~ の間でバージョンエラーが起きた場合は ~datasets~ のバージョンを下げてください。
+#+begin_src bash
+python -m pip install --upgrade \
+  "datasets<5" \
+  "transformers==4.38.2" \
+  "tokenizers==0.15.2" \
+  "huggingface-hub<1.0"
+#+end_src
+
 ***** Groq API を利用して数式の説明を追加
-API キーを発行し、環境変数に登録します
+[[https://console.groq.com/keys][API キーを発行]] し、環境変数に登録します
 #+begin_src bash
 export GROQ_API_KEY="gsk_..."
 #+end_src

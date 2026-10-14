@@ -1,7 +1,7 @@
 * 論文ノート
 :PROPERTIES:
-:NOTER_DOCUMENT: /home/nomura/MyNotes/Mynotes_project/研究/論文/PDFs/Image-Adaptive-3DLUT.pdf
-:NOTER_PAGE: 16
+:NOTER_DOCUMENT: ../PDFs/Image-Adaptive-3DLUT.pdf
+:NOTER_PAGE: 1
 :END:
 
 ** Front matter
