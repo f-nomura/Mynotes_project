@@ -234,6 +234,7 @@ magit           ; a git porcelain for Emacs
 #+end_src
 
 *** *cmigemo* : ローマ字で打つだけで日本語がヒットするようにする
+***** Windows
 [[https://github.com/koron/cmigemo/releases/tag/v1.8.0][インストール]]して解凍後、環境変数に登録するか config.el に記述してください。
 #+begin_src
 ## 環境変数の編集
@@ -244,6 +245,48 @@ magit           ; a git porcelain for Emacs
 #+end_src
 Windows の場合は msvc 版と ucrt64 版がありますがどちらでもいいです。ucrt64 版は Windows10 以降の新しい標準規格に合わせて作られたものです。
 
+***** WSL（AlmaLinux-10）
+#+begin_src bash
+# sudo dnf install git gcc make nkf
+mkdir -p ~/src
+cd ~/src
+git clone https://github.com/koron/cmigemo.git
+cd cmigemo
+#+end_src
+#+begin_src bash
+sudo dnf install cmake gcc curl perl gzip glibc-common
+cd ~/src/cmigemo
+cmake -B build
+cmake --build build
+#+end_src
+#+begin_src bash
+sudo cmake --install build --component core
+sudo cmake --install build --component dict
+which cmigemo
+#+end_src
+#+begin_src bash
+sudo cmake --install build --component mdict
+ls /usr/local/share/cmigemo/
+ls /usr/local/share/cmigemo/utf-8/
+#+end_src
+#+begin_src bash
+echo /usr/local/lib64 | sudo tee /etc/ld.so.conf.d/local-lib64.conf
+sudo ldconfig
+
+ldconfig -p | grep migemo
+echo "nihongo" | cmigemo -q -d /usr/local/share/cmigemo/utf-8/migemo-dict
+#+end_src
+
+~config.el~ に追記します。
+#+begin_src emacs-lisp
+(after! migemo
+  (setq migemo-command "/usr/local/bin/cmigemo"
+        migemo-options '("-q" "--emacs")
+        migemo-dictionary "/usr/local/share/cmigemo/utf-8/migemo-dict"
+        migemo-user-dictionary nil
+        migemo-regex-dictionary nil
+        migemo-coding-system 'utf-8-unix))
+#+end_src
 *** *rainbow-delimiters* : コード内のカッコの色を、階層（深さ）ごとに自動で色分けする
 #+begin_src emacs-lisp
 ;; package.el

@@ -169,23 +169,23 @@ DEADLINE: <2026-09-20 日>
 
 
 ** 10/12～10/18
-*** TODO mikan 月火水木金土日 DEADLINE: <2026-10-19 月>
-*** TODO 商品登録 10件<2026-10-19 月>
+*** TODO mikan 月火水木金土日 DEADLINE: <2026-10-18 日>
+*** TODO 商品登録 10件<2026-10-18 日>
 
-*** DOING 他研究との比較 DEADLINE: <2026-10-14 水>
+*** DOING 他研究との比較 DEADLINE: <2026-10-18 日>
 ***** Image-Adaptive-3DLUT
 ******* DONE 論文を読む<2026-10-13 火>
-******* TODO 論文通りの結果が出るかどうか確認 DEADLINE: <2026-10-13 火>
-******* TODO データ準備 DEADLINE: <2026-10-13 火>
-******* TODO 実行
-******* TODO 提出 DEADLINE: <2026-10-13 火>
+******* DONE 実行確認 DEADLINE: <2026-10-15 木>
+******* DONE データ準備 DEADLINE: <2026-10-15 木>
+******* DONE 実行<2026-10-16 金>
+******* DOING 提出 DEADLINE: <2026-10-15 木>
 ***** Deep Bilateral Learning
-******* TODO 論文を読む
-******* TODO 論文通りの結果が出るかどうか確認 DEADLINE: <2026-10-14 水>
-******* DOING データ準備 DEADLINE: <2026-10-14 水>
-******* TODO 専用スクリプトの用意 DEADLINE: <2026-10-14 水>
+******* DONE 論文を読む
+******* TODO 実行確認 DEADLINE: <2026-10-14 水>
+******* DOING データ準備 DEADLINE: <2026-10-16 金>
+******* TODO 専用スクリプトの用意 DEADLINE: <2026-10-16 金>
 ******* TODO 実行
-******* TODO 提出 DEADLINE: <2026-10-14 水>
+******* TODO 提出 DEADLINE: <2026-10-17 土>
 
 *** TODO 論文を読む環境を構築する（発展）
 ***** TODO 数式の LaTeX 化 ＋ 数式プレビュー
