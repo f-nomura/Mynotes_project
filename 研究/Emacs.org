@@ -1692,3 +1692,22 @@ export PDFNOTE_LLM_CHAIN="groq:openai/gpt-oss-120b,groq:openai/gpt-oss-20b"
 ** 論文の検索
 ** Zotero による文献管理
 ** 論文を横断した知識管理
+
+* OpenCode Agent を導入する
+*** WSL に OpenCode を導入する
+[[https://opencode.ai/docs/ja/][opencode はじめに]] のページより環境にあったものをインストールします。
+以下は AlmaLinux-10 で実行を確かめています。
+#+begin_src bash
+curl -fsSL https://opencode.ai/install | bash
+#+end_src
+アカウントを作成後、OpenCode CLI に接続します。
+バージョンによってコマンドが異なるので注意してください。
+#+begin_src bash
+opencode console login  # V1
+opencode auth login opencode  # V2
+#+end_src
+バージョン確認は以下のコマンドで行えます。
+#+begin_src bash
+opencode --version
+#+end_src
+*** TODO model 設定
