@@ -116,6 +116,16 @@ https://medium.com/@luis_gonzales/a-look-at-mobilenetv2-inverted-residuals-and-l
 *** TODO AI 接続（i-have-adhd 、yomiyasu 気になる）
 *** TODO eww で DuckDuckGo(検索エンジン)をバッファとして開く
 
+*** TODO 論文を読む環境を構築する（発展）
+***** TODO 数式の LaTeX 化 ＋ 数式プレビュー
+***** TODO Zotero による文献管理
+***** TODO 論文を横断した知識管理
+
+*** TODO ghostel
+*** TODO 実行時の描画ファイルを.fig に格納する
+*** TODO 表成形を完璧にする
+*** TODO tools のスクリプトの解説/改修
+*** TODO Emacs の org-mode で論文を書こう 2025 を実装する
 
 * 2026 / September
 ** 9/16〜9/20
@@ -169,34 +179,30 @@ DEADLINE: <2026-09-20 日>
 
 
 ** 10/12～10/18
-*** TODO mikan 月火水木金土日 DEADLINE: <2026-10-18 日>
-*** TODO 商品登録 10件<2026-10-18 日>
-
 *** DOING 他研究との比較 DEADLINE: <2026-10-18 日>
 ***** Image-Adaptive-3DLUT
 ******* DONE 論文を読む<2026-10-13 火>
 ******* DONE 実行確認 DEADLINE: <2026-10-15 木>
 ******* DONE データ準備 DEADLINE: <2026-10-15 木>
 ******* DONE 実行<2026-10-16 金>
-******* DOING 提出 DEADLINE: <2026-10-15 木>
+******* DOING 提出 DEADLINE: <2026-10-17 土>
 ***** Deep Bilateral Learning
 ******* DONE 論文を読む
 ******* TODO 実行確認 DEADLINE: <2026-10-14 水>
-******* DOING データ準備 DEADLINE: <2026-10-16 金>
-******* TODO 専用スクリプトの用意 DEADLINE: <2026-10-16 金>
+******* DOING データ準備 DEADLINE: <2026-10-17 土>
+******* TODO 専用スクリプトの用意 DEADLINE: <2026-10-17 土>
 ******* TODO 実行
-******* TODO 提出 DEADLINE: <2026-10-17 土>
+******* TODO 提出 DEADLINE: <2026-10-18 日>
 
-*** TODO 論文を読む環境を構築する（発展）
-***** TODO 数式の LaTeX 化 ＋ 数式プレビュー
-***** TODO Zotero による文献管理
-***** TODO 論文を横断した知識管理
 
-*** TODO ghostel
-*** TODO 実行時の描画ファイルを.fig に格納する
-*** TODO 表成形を完璧にする
-*** TODO tools のスクリプトの解説/改修
-*** TODO Emacs の org-mode で論文を書こう 2025 を実装する
-*** TODO ゼミ発表用のパワポを作成する
-*** TODO wsl（Linux）について勉強する
+** 10/19～10/25
+*** TODO 商品登録 10件<2026-10-25 日>
+
+*** TODO mikan 月火水木金土日 DEADLINE: <2026-10-25 日>
+
+*** TODO 演習課題提出 DEADLINE: <2026-10-18 日>
+*** TODO 予約採用書類提出 DEADLINE: <2026-10-19 月>
+
+*** TODO ゼミ発表用のパワポを作成する DEADLINE: <2026-10-21 水>
+*** TODO 奨学金書類用意<2026-10-23 金>
 *** TODO MSOfficce 再登録
