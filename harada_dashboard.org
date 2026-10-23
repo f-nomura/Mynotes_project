@@ -179,30 +179,31 @@ DEADLINE: <2026-09-20 日>
 
 
 ** 10/12～10/18
-*** DOING 他研究との比較 DEADLINE: <2026-10-18 日>
-***** Image-Adaptive-3DLUT
-******* DONE 論文を読む<2026-10-13 火>
-******* DONE 実行確認 DEADLINE: <2026-10-15 木>
-******* DONE データ準備 DEADLINE: <2026-10-15 木>
-******* DONE 実行<2026-10-16 金>
-******* DOING 提出 DEADLINE: <2026-10-17 土>
-***** Deep Bilateral Learning
+*** DONE Image-Adaptive-3DLUT
+***** DONE 論文を読む<2026-10-13 火>
+***** DONE 実行確認 DEADLINE: <2026-10-15 木>
+***** DONE データ準備 DEADLINE: <2026-10-15 木>
+***** DONE 実行<2026-10-16 金>
+***** DONE 提出 DEADLINE: <2026-10-20 火>
+
+** 10/19～10/25
+*** Deep Bilateral Learning
 ******* DONE 論文を読む
-******* TODO 実行確認 DEADLINE: <2026-10-14 水>
+******* DONE 実行確認 DEADLINE: <2026-10-18 日>
 ******* DOING データ準備 DEADLINE: <2026-10-17 土>
 ******* TODO 専用スクリプトの用意 DEADLINE: <2026-10-17 土>
 ******* TODO 実行
 ******* TODO 提出 DEADLINE: <2026-10-18 日>
 
 
-** 10/19～10/25
+*** DONE 演習課題提出 DEADLINE: <2026-10-18 日>
+*** TODO 予約採用書類提出 DEADLINE: <2026-10-21 水>
+
+*** TODO ゼミ発表用のパワポを作成する DEADLINE: <2026-10-21 水>
+
+*** TODO 奨学金書類用意<2026-10-23 金>
 *** TODO 商品登録 10件<2026-10-25 日>
 
 *** TODO mikan 月火水木金土日 DEADLINE: <2026-10-25 日>
 
-*** TODO 演習課題提出 DEADLINE: <2026-10-18 日>
-*** TODO 予約採用書類提出 DEADLINE: <2026-10-19 月>
-
-*** TODO ゼミ発表用のパワポを作成する DEADLINE: <2026-10-21 水>
-*** TODO 奨学金書類用意<2026-10-23 金>
 *** TODO MSOfficce 再登録

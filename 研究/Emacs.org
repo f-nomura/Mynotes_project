@@ -1693,7 +1693,8 @@ export PDFNOTE_LLM_CHAIN="groq:openai/gpt-oss-120b,groq:openai/gpt-oss-20b"
 ** Zotero による文献管理
 ** 論文を横断した知識管理
 
-* OpenCode Agent を導入する
+* OpenCode Agent, Qcoder を導入する
+** Opencode
 *** WSL に OpenCode を導入する
 [[https://opencode.ai/docs/ja/][opencode はじめに]] のページより環境にあったものをインストールします。
 以下は AlmaLinux-10 で実行を確かめています。
@@ -1711,3 +1712,13 @@ opencode auth login opencode  # V2
 opencode --version
 #+end_src
 *** TODO model 設定
+
+** Qcoder
+#+begin_src bash
+curl -fsSL https://qoder.com/install | bash
+#+end_src
+#+begin_src bash
+exec $SHELL
+qodercli login       # ブラウザが開く
+qodercli status
+#+end_src
