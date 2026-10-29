@@ -1693,7 +1693,7 @@ export PDFNOTE_LLM_CHAIN="groq:openai/gpt-oss-120b,groq:openai/gpt-oss-20b"
 ** Zotero による文献管理
 ** 論文を横断した知識管理
 
-* OpenCode Agent, Qcoder を導入する
+* OpenCode Agent, Qcoder , kilo を導入する
 ** Opencode
 *** WSL に OpenCode を導入する
 [[https://opencode.ai/docs/ja/][opencode はじめに]] のページより環境にあったものをインストールします。
@@ -1721,4 +1721,17 @@ curl -fsSL https://qoder.com/install | bash
 exec $SHELL
 qodercli login       # ブラウザが開く
 qodercli status
+#+end_src
+** kilo
+#+begin_src bash
+kilo auth login
+#+end_src
+** itera
+ブラウザでアカウント登録を行い、API キーを発行
+#+begin_src bash
+printf '%s' '取得したキー' > ~/.config/iteracompute/api_key
+chmod 600 ~/.config/iteracompute/api_key
+
+cd ~/agent-loop && .venv/bin/python -c \
+ "from fleet import models,registry; print(bool(models.itera_key(registry.load())))"
 #+end_src

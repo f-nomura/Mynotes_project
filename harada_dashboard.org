@@ -187,7 +187,7 @@ DEADLINE: <2026-09-20 日>
 ***** DONE 提出 DEADLINE: <2026-10-20 火>
 
 ** 10/19～10/25
-*** Deep Bilateral Learning
+*** WAIT Deep Bilateral Learning
 ******* DONE 論文を読む
 ******* DONE 実行確認 DEADLINE: <2026-10-18 日>
 ******* DOING データ準備 DEADLINE: <2026-10-17 土>
@@ -197,9 +197,9 @@ DEADLINE: <2026-09-20 日>
 
 
 *** DONE 演習課題提出 DEADLINE: <2026-10-18 日>
-*** TODO 予約採用書類提出 DEADLINE: <2026-10-21 水>
+*** DONE 予約採用書類提出 DEADLINE: <2026-10-23 金>
 
-*** TODO ゼミ発表用のパワポを作成する DEADLINE: <2026-10-21 水>
+*** DONE ゼミ発表用のパワポを作成する DEADLINE: <2026-10-21 水>
 
 *** TODO 奨学金書類用意<2026-10-23 金>
 *** TODO 商品登録 10件<2026-10-25 日>
