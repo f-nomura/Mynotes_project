@@ -1,0 +1,170 @@
+% tensor.bib — 吉田先生の文献ルール（2026-11-17 18:59 JST）に合わせた参考文献
+% ルール: ジャーナル・学会出版のみ（arXiv不使用）、PDF名は「年-誌名略称-内容-第一著者」、
+% キーワードは「内容:著者名:year」（著者2人まで両方、3人以上は第一著者+al）。
+% 元の一覧: ~/workspace/goals/11/files/参考文献-POU-PCHIP-PAVA.md（2026-11-04整理）
+% LOE / LOM / DRIM は 2026-11-20 に追加（①のまとめ用）。Image-Adaptive-3DLUT は書誌情報が無く未収録のまま。
+% AutoLumNet は arXiv のため先生ルールで tensor.bib には入れない（資料まとめ.org の本文側のみ）。
+% BibTeX安全のため著者名はASCII表記（Babuška -> Babuska）。
+
+% ---- POU ----
+@article{POU:MelenkBabuska:1996,
+  author  = {Melenk, J. M. and Babuska, I.},
+  title   = {The partition of unity finite element method: Basic theory and applications},
+  journal = {Computer Methods in Applied Mechanics and Engineering},
+  volume  = {139},
+  number  = {1--4},
+  pages   = {289--314},
+  year    = {1996},
+  note    = {PDF: 1996-CMAME-POU-Melenk.pdf}
+}
+
+@article{POU:BabuskaMelenk:1997,
+  author  = {Babuska, I. and Melenk, J. M.},
+  title   = {The partition of unity method},
+  journal = {International Journal for Numerical Methods in Engineering},
+  volume  = {40},
+  number  = {4},
+  pages   = {727--758},
+  year    = {1997},
+  note    = {PDF: 1997-IJNME-POU-Babuska.pdf}
+}
+
+@inproceedings{POU:OhtakeAl:2003,
+  author    = {Ohtake, Y. and Belyaev, A. and Alexa, M. and Turk, G. and Seidel, H.-P.},
+  title     = {Multi-level partition of unity implicits},
+  booktitle = {ACM Transactions on Graphics (Proceedings of SIGGRAPH 2003)},
+  volume    = {22},
+  number    = {3},
+  pages     = {463--470},
+  year      = {2003},
+  note      = {PDF: 2003-TOG-POU-Ohtake.pdf}
+}
+
+% ---- PCHIP ----
+@article{PCHIP:FritschCarlson:1980,
+  author  = {Fritsch, F. N. and Carlson, R. E.},
+  title   = {Monotone Piecewise Cubic Interpolation},
+  journal = {SIAM Journal on Numerical Analysis},
+  volume  = {17},
+  number  = {2},
+  pages   = {238--246},
+  year    = {1980},
+  note    = {PDF: 1980-SINUM-PCHIP-Fritsch.pdf}
+}
+
+@article{PCHIP:FritschButland:1984,
+  author  = {Fritsch, F. N. and Butland, J.},
+  title   = {A Method for Constructing Local Monotone Piecewise Cubic Interpolants},
+  journal = {SIAM Journal on Scientific and Statistical Computing},
+  volume  = {5},
+  number  = {2},
+  pages   = {300--304},
+  year    = {1984},
+  note    = {PDF: 1984-SISC-PCHIP-Fritsch.pdf}
+}
+
+@book{PCHIP:Moler:2004,
+  author    = {Moler, C.},
+  title     = {Numerical Computing with MATLAB},
+  publisher = {SIAM},
+  year      = {2004},
+  note      = {PDF: 2004-SIAM-PCHIP-Moler.pdf}
+}
+
+% ---- PAVA ----
+@book{PAVA:BarlowAl:1972,
+  author    = {Barlow, R. E. and Bartholomew, D. J. and Bremner, J. M. and Brunk, H. D.},
+  title     = {Statistical Inference Under Order Restrictions: The Theory and Application of Isotonic Regression},
+  publisher = {John Wiley \& Sons},
+  year      = {1972},
+  note      = {PDF: 1972-Wiley-PAVA-Barlow.pdf}
+}
+
+@article{PAVA:BarlowBrunk:1972,
+  author  = {Barlow, R. E. and Brunk, H. D.},
+  title   = {The Isotonic Regression Problem and Its Dual},
+  journal = {Journal of the American Statistical Association},
+  volume  = {67},
+  number  = {337},
+  pages   = {140--147},
+  year    = {1972},
+  note    = {PDF: 1972-JASA-PAVA-Barlow.pdf}
+}
+
+@article{PAVA:AyerAl:1955,
+  author  = {Ayer, M. and Brunk, H. D. and Ewing, G. M. and Reid, W. T. and Silverman, E.},
+  title   = {An Empirical Distribution Function for Sampling with Incomplete Information},
+  journal = {The Annals of Mathematical Statistics},
+  volume  = {26},
+  number  = {4},
+  pages   = {641--647},
+  year    = {1955},
+  note    = {PDF: 1955-AMS-PAVA-Ayer.pdf}
+}
+
+@article{PAVA:deLeeuwAl:2009,
+  author  = {de Leeuw, J. and Hornik, K. and Mair, P.},
+  title   = {Isotone Optimization in R: Pool-Adjacent-Violators Algorithm (PAVA) and Active Set Methods},
+  journal = {Journal of Statistical Software},
+  volume  = {32},
+  number  = {5},
+  pages   = {1--24},
+  year    = {2009},
+  note    = {PDF: 2009-JSS-PAVA-deLeeuw.pdf}
+}
+
+% ---- LOE: 順序保存を測った最初の物差し（全体スケール） ----
+@article{LOE:WangAl:2013,
+  author  = {Wang, S. and Zheng, J. and Hu, H. M. and Li, B.},
+  title   = {Naturalness Preserved Enhancement Algorithm for Non-Uniform Illumination Images},
+  journal = {IEEE Transactions on Image Processing},
+  volume  = {22},
+  number  = {9},
+  pages   = {3538--3548},
+  year    = {2013},
+  note    = {PDF: 2013-TIP-LOE-Wang.pdf}
+}
+
+% ---- LOM: 順序保存の局所版、主観実験と整合した小規模な例がある ----
+@inproceedings{LOM:BaiReibman:2018,
+  author    = {Bai, C. and Reibman, A. R.},
+  title     = {Controllable Image Illumination Enhancement with an Over-Enhancement Measure},
+  booktitle = {Proceedings of the IEEE International Conference on Image Processing (ICIP)},
+  year      = {2018},
+  note      = {PDF: 2018-ICIP-LOM-Bai.pdf}
+}
+
+% ---- DRIM: コントラスト反転を地図化する近縁（スコア化はしない） ----
+@article{DRIM:AydinAl:2008,
+  author  = {Aydin, T. O. and Mantiuk, R. and Myszkowski, K. and Seidel, H.-P.},
+  title   = {Dynamic Range Independent Image Quality Assessment},
+  journal = {ACM Transactions on Graphics},
+  volume  = {27},
+  number  = {3},
+  articleno = {69},
+  year    = {2008},
+  note    = {PDF: 2008-TOG-DRIM-Aydin.pdf}
+}
+
+% ---- 勾配逆転の設計側の先例（2026-11-20 追加・原文確認済み） ----
+@article{GRADREV:BaeAl:2006,
+  author  = {Bae, S. and Paris, S. and Durand, F.},
+  title   = {Two-scale tone management for photographic look},
+  journal = {ACM Transactions on Graphics},
+  volume  = {25},
+  number  = {3},
+  pages   = {637--645},
+  year    = {2006},
+  note    = {PDF: 2006-TOG-GradRev-Bae.pdf}
+}
+
+@article{GUIDED:HeAl:2013,
+  author  = {He, K. and Sun, J. and Tang, X.},
+  title   = {Guided Image Filtering},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume  = {35},
+  number  = {6},
+  pages   = {1397--1409},
+  year    = {2013},
+  note    = {PDF: 2013-TPAMI-Guided-He.pdf}
+}
