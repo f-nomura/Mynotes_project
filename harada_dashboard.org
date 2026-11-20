@@ -81,7 +81,6 @@ https://medium.com/@luis_gonzales/a-look-at-mobilenetv2-inverted-residuals-and-l
 - *Shift + 矢印キー* : Org-Agenda 状態の遷移
 
 ** 研究
-*** 解像度を下げた画像データを使用し、タイル分割の有用性を示す DEADLINE: <2026-09-27 日>
 ** TOEIC
 *** TODO mikan 火水木金土日
 ** Kaggle
@@ -104,9 +103,7 @@ https://medium.com/@luis_gonzales/a-look-at-mobilenetv2-inverted-residuals-and-l
 
 *** TODO スライド資料 reveal.js
 *** TODO agenda 論文の property 検索
-*** TODO Org-agenda TODO の管理
 *** TODO 数式のプレビュー C-c C-x C-l
-*** TODO Tangle : Org ファイル内のコードブロックをエクスポートする
 *** TODO gt 翻訳
 *** TODO org-table-canvas 表を書くのが簡単
 *** TODO org-draw 手書き
@@ -114,7 +111,6 @@ https://medium.com/@luis_gonzales/a-look-at-mobilenetv2-inverted-residuals-and-l
 *** TODO Emacs 内で Gemini, Copilot を使えるようにする
 *** TODO Org ファイルでそのまま github-io できたりしないかな
 *** TODO AI 接続（i-have-adhd 、yomiyasu 気になる）
-*** TODO eww で DuckDuckGo(検索エンジン)をバッファとして開く
 
 *** TODO 論文を読む環境を構築する（発展）
 ***** TODO 数式の LaTeX 化 ＋ 数式プレビュー
@@ -126,6 +122,7 @@ https://medium.com/@luis_gonzales/a-look-at-mobilenetv2-inverted-residuals-and-l
 *** TODO 表成形を完璧にする
 *** TODO tools のスクリプトの解説/改修
 *** TODO Emacs の org-mode で論文を書こう 2025 を実装する
+
 
 * 2026 / September
 ** 9/16〜9/20
@@ -177,7 +174,6 @@ DEADLINE: <2026-09-20 日>
 *** DONE WSL 環境に移行する DEADLINE: <2026-10-09 金>
 
 
-
 ** 10/12～10/18
 *** DONE Image-Adaptive-3DLUT
 ***** DONE 論文を読む<2026-10-13 火>
@@ -201,9 +197,18 @@ DEADLINE: <2026-09-20 日>
 
 *** DONE ゼミ発表用のパワポを作成する DEADLINE: <2026-10-21 水>
 
-*** TODO 奨学金書類用意<2026-10-23 金>
-*** TODO 商品登録 10件<2026-10-25 日>
+*** DONE 奨学金書類用意<2026-10-23 金>
+*** DONE 商品登録 10件<2026-10-25 日>
 
-*** TODO mikan 月火水木金土日 DEADLINE: <2026-10-25 日>
+** 10/26～11/1
+*** DONE emacs_setting の作成 <2026-10-29 木>
+*** DONE ブラウザ機能の追加 <2026-11-01 日>
+*** DONE 出品・リサーチシステムの構築 <2026-11-01 日>
 
+
+* 2026 / November
+** 11/2～11/8
+*** TODO mikan 月火水木金土日 DEADLINE: <2026-11-08 日>
+*** TODO 毎日 1000 円稼ぐ 月火水木金土日 DEADLINE: <2026-11-08 日>
+*** TODO 応用情報技術者 日月火水木金土日 計 14 時間 DEADLINE: <2026-11-08 日>
 *** TODO MSOfficce 再登録
